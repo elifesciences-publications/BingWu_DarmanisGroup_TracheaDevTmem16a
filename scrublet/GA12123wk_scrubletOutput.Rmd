@@ -1,0 +1,93 @@
+---
+title: "P1Dec11scrublet"
+output: html_document
+---
+```{r}
+barcode_21<-read.csv(file="/home/ubuntu/velocyto/Hs_Trachea/Apr3_v3chemistry/GA21wk/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_21<-unlist(barcode_21,use.names = F)
+barcode_21<-gsub("-1","",barcode_21)
+barcode_21<-paste("GA21wk_v3_",barcode_21,sep="")
+doublet_score_21<-read.csv(file="/home/ubuntu/scrublet/examples/GA21wk_Apr3_v3_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_21<-unlist(doublet_score_21,use.names = F)
+names(doublet_score_21)<-barcode_21
+head(doublet_score_21)
+```
+```{r}
+barcode_23<-read.csv(file="/home/ubuntu/velocyto/Hs_Trachea/Apr3_v3chemistry/GA23wk/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_23<-unlist(barcode_23,use.names = F)
+barcode_23<-gsub("-1","",barcode_23)
+barcode_23<-paste("GA23wk_v3_",barcode_23,sep="")
+doublet_score_23<-read.csv(file="/home/ubuntu/scrublet/examples/GA23wk_Apr3_v3_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_23<-unlist(doublet_score_23,use.names = F)
+names(doublet_score_23)<-barcode_23
+head(doublet_score_23)
+```
+```{r}
+GA2123wk_apr3_v3_doubletScore<-c(doublet_score_21,doublet_score_23)
+```
+```{r}
+save(GA2123wk_apr3_v3_doubletScore,file="GA2123wk_apr3_v3_doubletScore.RData")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

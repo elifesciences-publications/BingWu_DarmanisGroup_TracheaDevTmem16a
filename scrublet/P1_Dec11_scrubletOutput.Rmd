@@ -1,0 +1,116 @@
+---
+title: "P1Dec11scrublet"
+output: html_document
+---
+```{r}
+barcode_wt6<-read.csv(file="/home/ubuntu/velocyto/Dec_trachea/P1_Dec11/wt6/P1_Dec11_wt_6/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_wt6<-unlist(barcode_wt6,use.names = F)
+barcode_wt6<-gsub("-1","",barcode_wt6)
+barcode_wt6<-paste("P1_Dec11_wt_6_",barcode_wt6,sep="")
+doublet_score_wt6<-read.csv(file="/home/ubuntu/scrublet/examples/P1_Dec11_wt_6_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_wt6<-unlist(doublet_score_wt6,use.names = F)
+names(doublet_score_wt6)<-barcode_wt6
+head(doublet_score_wt6)
+```
+```{r}
+barcode_wt7<-read.csv(file="/home/ubuntu/velocyto/Dec_trachea/P1_Dec11/wt7/P1_Dec11_wt_7/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_wt7<-unlist(barcode_wt7,use.names = F)
+barcode_wt7<-gsub("-1","",barcode_wt7)
+barcode_wt7<-paste("P1_Dec11_wt_7_",barcode_wt7,sep="")
+doublet_score_wt7<-read.csv(file="/home/ubuntu/scrublet/examples/P1_Dec11_wt_7_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_wt7<-unlist(doublet_score_wt7,use.names = F)
+names(doublet_score_wt7)<-barcode_wt7
+head(doublet_score_wt7)
+
+```
+```{r}
+barcode_mut1<-read.csv(file="/home/ubuntu/velocyto/Dec_trachea/P1_Dec11/mut1/P1_Dec11_mut_1/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_mut1<-unlist(barcode_mut1,use.names = F)
+barcode_mut1<-gsub("-1","",barcode_mut1)
+barcode_mut1<-paste("P1_Dec11_mut_1_",barcode_mut1,sep="")
+doublet_score_mut1<-read.csv(file="/home/ubuntu/scrublet/examples/P1_Dec11_mut_1_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_mut1<-unlist(doublet_score_mut1,use.names = F)
+names(doublet_score_mut1)<-barcode_mut1
+head(doublet_score_mut1)
+
+```
+```{r}
+barcode_mut2<-read.csv(file="/home/ubuntu/velocyto/Dec_trachea/P1_Dec11/mut2/P1_Dec11_mut_2/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_mut2<-unlist(barcode_mut2,use.names = F)
+barcode_mut2<-gsub("-1","",barcode_mut2)
+barcode_mut2<-paste("P1_Dec11_mut_2_",barcode_mut2,sep="")
+doublet_score_mut2<-read.csv(file="/home/ubuntu/scrublet/examples/P1_Dec11_mut_2_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_mut2<-unlist(doublet_score_mut2,use.names = F)
+names(doublet_score_mut2)<-barcode_mut2
+head(doublet_score_mut2)
+
+```
+```{r}
+P1_Dec11_doubletScore<-c(doublet_score_mut1,doublet_score_mut2,doublet_score_wt6,doublet_score_wt7)
+```
+```{r}
+save(P1_Dec11_doubletScore,file="P1_Dec11_doubletScore.RData")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

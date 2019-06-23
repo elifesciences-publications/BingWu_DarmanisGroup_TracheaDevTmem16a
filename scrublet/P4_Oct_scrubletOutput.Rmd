@@ -1,0 +1,111 @@
+---
+title: "P4_scrublet"
+output: html_document
+---
+```{r}
+barcode_Oct_wt_green<-read.csv(file="/home/ubuntu/velocyto/P4_mm10_1_2_0/86_23B/86_23B/86_23B/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_Oct_wt_green<-unlist(barcode_Oct_wt_green,use.names = F)
+barcode_Oct_wt_green<-gsub("-1","",barcode_Oct_wt_green)
+barcode_Oct_wt_green<-paste("P4_Oct18_wt_green_",barcode_Oct_wt_green,sep="")
+doublet_score_wt_green<-read.csv(file="/home/ubuntu/scrublet/examples/P4_Oct18_wt_green_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_wt_green<-unlist(doublet_score_wt_green,use.names = F)
+names(doublet_score_wt_green)<-barcode_Oct_wt_green
+```
+```{r}
+barcode_Oct_mut_green<-read.csv(file="/home/ubuntu/velocyto/P4_mm10_1_2_0/86_1B/86_1B/86_1B/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_Oct_mut_green<-unlist(barcode_Oct_mut_green,use.names = F)
+barcode_Oct_mut_green<-gsub("-1","",barcode_Oct_mut_green)
+barcode_Oct_mut_green<-paste("P4_Oct18_mut_green_",barcode_Oct_mut_green,sep="")
+doublet_score_mut_green<-read.csv(file="/home/ubuntu/scrublet/examples/P4_Oct18_mut_green_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_mut_green<-unlist(doublet_score_mut_green,use.names = F)
+names(doublet_score_mut_green)<-barcode_Oct_mut_green
+```
+
+```{r}
+barcode_Oct_wt_red<-read.csv(file="/home/ubuntu/velocyto/P4_mm10_1_2_0/86_23C/P4_Oct18_wt_red/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_Oct_wt_red<-unlist(barcode_Oct_wt_red,use.names = F)
+barcode_Oct_wt_red<-gsub("-1","",barcode_Oct_wt_red)
+barcode_Oct_wt_red<-paste("P4_Oct18_wt_red_",barcode_Oct_wt_red,sep="")
+doublet_score_wt_red<-read.csv(file="/home/ubuntu/scrublet/examples/P4_Oct18_wt_red_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_wt_red<-unlist(doublet_score_wt_red,use.names = F)
+names(doublet_score_wt_red)<-barcode_Oct_wt_red
+```
+```{r}
+barcode_Oct_mut_red<-read.csv(file="/home/ubuntu/velocyto/P4_mm10_1_2_0/86_1C/P4_Oct18_mut_red/outs/filtered_gene_bc_matrices/mm10-1.2.0/barcodes.tsv",header=F,sep="\t",stringsAsFactors = F)
+barcode_Oct_mut_red<-unlist(barcode_Oct_mut_red,use.names = F)
+barcode_Oct_mut_red<-gsub("-1","",barcode_Oct_mut_red)
+barcode_Oct_mut_red<-paste("P4_Oct18_mut_red_",barcode_Oct_mut_red,sep="")
+doublet_score_mut_red<-read.csv(file="/home/ubuntu/scrublet/examples/P4_Oct18_mut_red_doubletScore.csv",header=F,sep=",",stringsAsFactors = F)
+doublet_score_mut_red<-unlist(doublet_score_mut_red,use.names = F)
+names(doublet_score_mut_red)<-barcode_Oct_mut_red
+```
+
+```{r}
+P4_Oct_doubletScore<-c(doublet_score_wt_red,doublet_score_wt_green,doublet_score_mut_red,doublet_score_mut_green)
+```
+```{r}
+save(P4_Oct_doubletScore,file="P4_Oct_doubletScore.RData")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

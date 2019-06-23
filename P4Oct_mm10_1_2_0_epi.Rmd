@@ -1,0 +1,482 @@
+---
+title: "P4_Trachea_10X_epithelial"
+output: html_notebook
+---
+##### P4 trachea sample collected on Oct18 2018. epithelial subset
+```{r}
+library(Seurat)
+library(dplyr)
+```
+
+##### basal, secretory, and ciliated:
+```{r}
+P4_10X_mm10_1.2.0 <- SetAllIdent(object = P4_10X_mm10_1.2.0, id = "res.0.8")
+P4_Oct18_epi<-SubsetData(object=P4_10X_mm10_1.2.0,ident.use=c(1:5,8,11))
+table(P4_Oct18_epi@meta.data$res.0.8,P4_Oct18_epi@meta.data$seq_group)
+```
+```{r}
+colnames(P4_Oct18_epi@meta.data)[colnames(P4_Oct18_epi@meta.data) == 'res.0.8'] <- 'orig.0.8'
+
+P4_Oct18_epi <- ScaleData(object = P4_Oct18_epi)
+```
+
+```{r}
+P4_Oct18_epi <- FindVariableGenes(object = P4_Oct18_epi, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+######run PCA on the set of genes
+```{r}
+P4_Oct18_epi <- RunPCA(object = P4_Oct18_epi, do.print = FALSE)
+PCAPlot(P4_Oct18_epi)
+```
+
+```{r}
+P4_Oct18_epi <- ProjectPCA(object = P4_Oct18_epi, do.print = F)
+```
+
+```{r}
+PCElbowPlot(object = P4_Oct18_epi)
+```
+```{r,fig.height=50,fig.width=15}
+PCHeatmap(object = P4_Oct18_epi, pc.use = 1:20, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 25)
+
+```
+
+
+```{r}
+n.pcs.sub = 16
+```
+```{r}
+res.used <- 0.8
+```
+
+```{r}
+P4_Oct18_epi <- FindClusters(object = P4_Oct18_epi, reduction.type = "pca", dims.use = 1:n.pcs.sub, 
+                     resolution = res.used, print.output = 0, force.recalc = T)
+```
+```{r}
+P4_Oct18_epi <- RunTSNE(object = P4_Oct18_epi, dims.use = 1:n.pcs.sub, perplexity=30)
+```
+```{r, fig.width=10,fig.height=6}
+TSNEPlot(object = P4_Oct18_epi, do.label = T,pt.size = 0.4,group.by="res.0.8")
+```
+```{r}
+TSNEPlot(object = P4_Oct18_epi, do.label = F,group.by="genotype",pt.size = 0.4)
+```
+
+```{r,fig.height=8,fig.width=40}
+
+DoHeatmap(object = P4_Oct18_epi, genes.use = c("Epcam","Trp63","Krt5","Krt14","Sostdc1","Mki67","Top2a","Krt4","Krt13","Spdef","Creb3l1","Muc5ac","Gp2","Galnt6","Ptgdr","Cd177","Foxj1","Foxn4","Shisa8"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by = "res.0.8",cex.row = 25,group.cex = 30
+  )
+```
+
+```{r}
+P4_Oct18_epi@meta.data$cell_type<-mapvalues(P4_Oct18_epi@meta.data$res.0.8,from=c("0","1","2","3","4","5","6","7","8","9"),to=c("Secretory","Secretory","Ciliated","Secretory","CiliaSecretory","Secretory","Basal","Basal","Ciliated","Ciliated"))
+```
+
+```{r}
+P4_epi_cellType<-P4_Oct18_epi@meta.data$cell_type
+names(P4_epi_cellType)<-P4_Oct18_epi@cell.names
+#this will be used in P4Oct_mm10_1_2_0_EC2.Rmd
+```
+```{r,fig.width=5,fig.height=5}
+ggplot(data=P4_Oct18_epi@meta.data,aes(genotype,fill=cell_type))+ 
+    geom_bar(position="fill")+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+table(P4_Oct18_epi@meta.data$cell_type,P4_Oct18_epi@meta.data$genotype)
+```
+##### compare between genotypes:
+```{r}
+DE_P4_ciliated_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="Ciliated" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="Ciliated" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
+DE_P4_ciliated_genotype
+```
+
+```{r}
+write.table(DE_P4_ciliated_genotype,"DE_P4_ciliated_genotype.txt",sep="\t")
+```
+
+
+```{r}
+P4_ciliated_automatic_geneList<-DE_P4_ciliated_genotype$gene[DE_P4_ciliated_genotype$p_val_adj<0.001 & abs(DE_P4_ciliated_genotype$avg_logFC)>0.5 & abs(DE_P4_ciliated_genotype$pct.1-DE_P4_ciliated_genotype$pct.2)>0.15]
+```
+```{r}
+library(ggrepel)
+```
+```{r,fig.height=8,fig.width=12}
+DE_P4_ciliated_genotype$gene<-rownames(DE_P4_ciliated_genotype)
+#DE_P4_secretory_genotype$sig<-DE_P4_secretory_genotype$p_val_adj<0.001
+DE_P4_ciliated_genotype$threshold<- ifelse(DE_P4_ciliated_genotype$avg_logFC>0 & DE_P4_ciliated_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_ciliated_genotype$avg_logFC<0 & DE_P4_ciliated_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+ggplot(DE_P4_ciliated_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4Ciliated_wt/mut") + geom_text_repel(data=DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% P4_ciliated_automatic_geneList,], aes(label=gene), point.padding = 1, box.padding = .3) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+
+```{r,fig.height=8,fig.width=12}
+DE_P4_ciliated_genotype$gene<-rownames(DE_P4_ciliated_genotype)
+#DE_P4_secretory_genotype$sig<-DE_P4_secretory_genotype$p_val_adj<0.001
+DE_P4_ciliated_genotype$threshold<- ifelse(DE_P4_ciliated_genotype$avg_logFC>0 & DE_P4_ciliated_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_ciliated_genotype$avg_logFC<0 & DE_P4_ciliated_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+ggplot(DE_P4_ciliated_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4Ciliated_wt/mut") + geom_text_repel(data=DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% geneList$Primary.ciliary.dyskinesia,], aes(label=gene), point.padding = 1, box.padding = .3) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+```{r}
+
+DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% geneList$Primary.ciliary.dyskinesia,]
+```
+
+```{r}
+
+DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% geneList$Ciliopathy,]
+```
+
+```{r}
+DE_P4_basal_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="Basal" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="Basal" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
+DE_P4_basal_genotype
+```
+```{r}
+write.table(DE_P4_basal_genotype,"DE_P4_basal_genotype.txt",sep="\t")
+```
+
+```{r}
+P4_basal_automatic_geneList<-DE_P4_basal_genotype$gene[DE_P4_basal_genotype$p_val_adj<0.001 & abs(DE_P4_basal_genotype$avg_logFC)>0.5 & abs(DE_P4_basal_genotype$pct.1-DE_P4_basal_genotype$pct.2)>0.15]
+```
+```{r}
+library(ggrepel)
+```
+```{r,fig.height=8,fig.width=12}
+DE_P4_basal_genotype$gene<-rownames(DE_P4_basal_genotype)
+#DE_P4_secretory_genotype$sig<-DE_P4_secretory_genotype$p_val_adj<0.001
+DE_P4_basal_genotype$threshold<- ifelse(DE_P4_basal_genotype$avg_logFC>0 & DE_P4_basal_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_basal_genotype$avg_logFC<0 & DE_P4_basal_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+ggplot(DE_P4_basal_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4Basal_wt/mut") + geom_text_repel(data=DE_P4_basal_genotype[DE_P4_basal_genotype$gene %in% P4_basal_automatic_geneList,], aes(label=gene), point.padding = 1, box.padding = .3) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+
+```{r}
+DE_P4_secretory_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="Secretory" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="Secretory" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
+DE_P4_secretory_genotype
+```
+```{r}
+write.table(DE_P4_secretory_genotype,"DE_P4_secretory_genotype.txt",sep="\t")
+```
+
+
+```{r}
+P4_sec_automatic_geneList<-DE_P4_secretory_genotype$gene[DE_P4_secretory_genotype$p_val_adj<0.001 & abs(DE_P4_secretory_genotype$avg_logFC)>0.5 & abs(DE_P4_secretory_genotype$pct.1-DE_P4_secretory_genotype$pct.2)>0.15]
+```
+```{r}
+library(ggrepel)
+```
+```{r}
+DE_P4_secretory_genotype$gene<-rownames(DE_P4_secretory_genotype)
+DE_P4_secretory_genotype$sig<-DE_P4_secretory_genotype$p_val_adj<0.001
+DE_P4_secretory_genotype$threshold<- ifelse(DE_P4_secretory_genotype$avg_logFC>0 & DE_P4_secretory_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_secretory_genotype$avg_logFC<0 & DE_P4_secretory_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+volc = ggplot(DE_P4_secretory_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4secretory_wt/mut") + geom_text_repel(data=DE_P4_secretory_genotype[DE_P4_secretory_genotype$gene %in% P4_sec_automatic_geneList,], aes(label=gene), point.padding = 1, box.padding = .3) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+```{r,fig.height=8,fig.width=12}
+volc
+```
+
+```{r}
+P4_sec_geneList<-c("Itln1","Retnla","Chil4","Clca1","Cxcl15","Fcgbp","Nfkbia","Hspa5","Ly6k","Ifrd1","Gm42418","Cxcl2","Nfkbiz","Lcn2","Igfbp3","Crip1","Selenbp1","Tppp3","Lyz2","S100a6","Plac8","AU040972","Klk10","Lyz1","Ly6a","Lgals3","Cxcl17","F3","Krt7","Cp","Tsc22d3","Mt1","Chil1","Krt4","Ptprz1","Ifitm1","Txnip","S100a10","Ly6g6c","Hes1","Cldn3","Klk11","Slpi","Baiap2","Plet1","Scnn1a","Lbp","Ltf","Ptges","Muc4","Atp1b1","Atp7b","Ptp4a1","AA467197")
+```
+
+```{r,fig.height=8,fig.width=16}
+#DE_P4_secretory_genotype$gene<-rownames(DE_P4_secretory_genotype)
+#DE_P4_secretory_genotype$sig<-DE_P4_secretory_genotype$p_val_adj<0.001
+#DE_P4_secretory_genotype$threshold<- ifelse(DE_P4_secretory_genotype$avg_logFC>0 & DE_P4_secretory_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_secretory_genotype$avg_logFC<0 & DE_P4_secretory_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+ggplot(DE_P4_secretory_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.4) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4secretory_wt/mut") + geom_text_repel(data=DE_P4_secretory_genotype[DE_P4_secretory_genotype$gene %in% P4_sec_geneList,], aes(label=gene), point.padding = 0.01, box.padding = 0.05,size=8,max.iter = 6000) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+
+##### Interleukins: 
+```{r,fig.height=16, fig.width=15}
+VlnPlot(object = P4_Oct18_epi, features.plot = c("Il10","Il11","Il12a","Il13","Il15","Il16","Il17a","Il17b","Il17c","Il17d","Il17f","Il18","Il2","Il21","Il22","Il24","Il25","Il27","Il33","Il34","Il4","Il5","Il6","Il7","Il1a","Il1b","Il31"), nCol = 6,x.lab.rot = T,point.size.use = 0.2,group.by="cell_type", legend.position = "left")
+```
+
+##### Interferons: very few are expressed
+
+```{r,fig.height=16, fig.width=15}
+VlnPlot(object = P4_Oct18_epi, features.plot = grep("Ifn",rownames(P4_Oct18_epi@data),value=T), nCol = 3,x.lab.rot = T,point.size.use = 0.2,group.by="cell_type", legend.position = "left")
+```
+
+##### antimicrobial effectors: wt vs mut
+
+```{r,fig.height=4,fig.width=6}
+SplitDotPlotGG(object = P4_Oct18_epi, cols.use = c("forestgreen","forestgreen"),genes.plot = c("Muc1","Muc4","Muc16","Muc20","Muc5b","Muc5ac","Muc2","Defb1","Lyz2","Ltf","Sftpa1","Sftpd","Sftpb","Slpi","Lcn2","Pigr","Chil4"),group.by="cell_type",grouping.var="genotype",x.lab.rot = T,plot.legend = T) #this scales genotypes separately
+```
+```{r}
+P4_Oct18_epi@meta.data$type_genotype<-as.factor(paste(P4_Oct18_epi@meta.data$cell_type,P4_Oct18_epi@meta.data$genotype,sep="_"))
+```
+
+
+```{r,fig.height=6,fig.width=5}
+P4_Oct18_epi<-SetAllIdent(object = P4_Oct18_epi, id = "type_genotype")
+
+P4_Oct18_epi@ident=factor(P4_Oct18_epi@ident,levels(P4_Oct18_epi@ident)[c(1,2,7,8,5,6,3,4)])
+DotPlot(object = P4_Oct18_epi, cols.use = c("yellow","red"),genes.plot = rev(c("Sftpa1","Chil4","Muc5ac","Muc2","Muc20","Muc5b","Muc1","Muc16","Muc4","Pigr","Ltf","Lyz2","Slpi","Lcn2","Sftpd","Sftpb","Defb1")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
+```
+
+```{r,fig.height=6,fig.width=5}
+P4_Oct18_epi<-SetAllIdent(object = P4_Oct18_epi, id = "type_genotype")
+
+P4_Oct18_epi@ident=factor(P4_Oct18_epi@ident,levels(P4_Oct18_epi@ident)[c(1,2,7,8,5,6,3,4)])
+DotPlot(object = P4_Oct18_epi, cols.use = c("yellow","red"),genes.plot = rev(c("Nfkbia","Nfkbiz","Retnla","Cxcl17","Cxcl15","Ccl20","Areg","Chil4","Muc5b","Muc4","Pigr","Ltf","Lyz2","Slpi","Lcn2","Sftpd","Sftpb","Defb1","Lgals3","Itln1")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
+```
+
+```{r}
+df_P4_epi<-FetchData(P4_Oct18_epi,c("Spdef","Creb3l1","Scgb3a2","Scgb1a1","Krt4","Krt13","Foxa3","Aqp3","Aqp4","Aqp5","Gp2","Sostdc1","Smoc2","Krt14","Krt15","Krt5","Rac2","Clic3","res.0.8","genotype","seq_group","specific_type","cell_type","Defb1","Lyz2","Ltf","Sftpa1","Sftpd","Sftpb","Slpi","Lcn2","Pigr","Muc5b","Muc5ac","Chil4","Muc1","Muc2","Muc4","Muc16","Muc20","Lbp","Cd14","Tlr4","Tlr2","Myd88","Ticam1","Itln1","Lgals3","Reg3g","Nod1","Nod2","Ddx58","Ifih1","Dhx58","Ccl5","Cxcl10","Cxcl2","Cxcl1","Pf4","Cxcl12","Cxcl14","Cxcl15","Cxcl16","Cxcl17","Ccl2","Ccl7","Ccl17","Ccl20","Ccl21a","Ccl25","Ccl27a","Ccl28","Cx3cl1","Il10","Tnf","S100a8","S100a9","Il6","Il18","Il1b","Il1rl1","Ccl11","Ccl24","Il33","Il25","Tslp","F2rl1","Retnla","Alox15","Alox5","Gata2","Tgfb2","Tgfb1","Ormdl3","Ptges","Ptgds","Ptgs2","Hpgds","Tbxas1","Areg","Il2","Il34","Il15","Ifnlr1","Nfkbiz","Nfkbia"))
+
+```
+##### MicrobialSensing:
+```{r, fig.height=3, fig.width=7}
+for (i in c("Lbp","Cd14","Tlr4","Tlr2","Myd88","Ticam1","Itln1","Reg3g","Lgals3","Nod1","Nod2","Ddx58","Ifih1","Dhx58"))
+{
+pdf(file = paste("Manuscript/MicrobialSensing_genotype/P4/",i,".pdf", sep = ""), width = 6, height = 5)
+print(ggplot(df_P4_epi,aes_string(x="genotype",y=i))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0)))
+dev.off()
+}
+```
+
+##### antimicrobial effectors:
+```{r, fig.height=3, fig.width=7}
+for (i in c("Muc1","Muc4","Muc16","Muc20","Muc5b","Muc5ac","Muc2","Defb1","Lyz2","Ltf","Sftpa1","Sftpd","Sftpb","Slpi","Lcn2","Pigr","Chil4"))
+{
+pdf(file = paste("Manuscript/Effectors_genotype/P4/",i,".pdf", sep = ""), width = 6, height = 5)
+print(ggplot(df_P4_epi,aes_string(x="genotype",y=i))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0)))
+dev.off()
+}
+```
+##### chemokines:
+```{r, fig.height=3, fig.width=7}
+for (i in c("Ccl5","Cxcl10","Cxcl2","Cxcl1","Pf4","Cxcl12","Cxcl14","Cxcl15","Cxcl16","Cxcl17","Ccl2","Ccl7","Ccl17","Ccl20","Ccl21a","Ccl25","Ccl27a","Ccl28","Cx3cl1"))
+{
+pdf(file = paste("Manuscript/chemokines_genotype/P4/",i,".pdf", sep = ""), width = 6, height = 5)
+print(ggplot(df_P4_epi,aes_string(x="genotype",y=i))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0)))
+dev.off()
+}
+```
+##### Th2:
+```{r, fig.height=3, fig.width=7}
+for (i in c("Il10","Tnf","S100a8","S100a9","Il6","Il18","Il1b","Il1rl1","Ccl11","Ccl24","Il33","Il25","Tslp","F2rl1","Retnla","Alox15","Alox5","Gata2","Tgfb2","Tgfb1","Ormdl3","Ptges","Ptgds","Ptgs2","Hpgds","Tbxas1","Areg"))
+{
+pdf(file = paste("Manuscript/Th2_genotype/P4/",i,".pdf", sep = ""), width = 6, height = 5)
+print(ggplot(df_P4_epi,aes_string(x="genotype",y=i))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0)))
+dev.off()
+}
+```
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Nfkbia))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Itln1))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Reg3g))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Lgals3))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Aqp3))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Muc4))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Muc20))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+
+
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Lcn2))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Ccl20))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Cxcl15))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=10}
+
+ggplot(df_P4_epi,aes(genotype,Cxcl17))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Chil4))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Pigr))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Krt4))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Sostdc1))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.01,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+```{r, fig.height=5, fig.width=6}
+
+ggplot(df_P4_epi,aes(genotype,Krt13))+facet_grid(.~cell_type)+geom_dotplot(binaxis="y",aes(fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1),strip.text.x = element_text(size = 9, colour = "black", angle = 0))
+```
+
+
+
+```{r}
+res.used <- 1.2
+```
+
+```{r}
+P4_Oct18_epi <- FindClusters(object = P4_Oct18_epi, reduction.type = "pca", dims.use = 1:n.pcs.sub, 
+                     resolution = res.used, print.output = 0, force.recalc = T)
+```
+```{r}
+P4_Oct18_epi <- RunTSNE(object = P4_Oct18_epi, dims.use = 1:n.pcs.sub, perplexity=30)
+```
+```{r, fig.width=10,fig.height=6}
+TSNEPlot(object = P4_Oct18_epi, do.label = T,pt.size = 0.4,group.by="res.1.2")
+```
+```{r,fig.height=12,fig.width=35}
+
+DoHeatmap(object = P4_Oct18_epi, genes.use = c("Epcam","Trp63","Krt5","Krt14","Sostdc1","Mki67","Top2a","Krt4","Krt13","Spdef","Creb3l1","Muc5ac","Gp2","Galnt6","Ptgdr","Cd177","Foxj1","Foxn4","Shisa8"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by = "res.1.2",cex.row = 30,group.cex = 30
+  )
+```
+
+```{r}
+table(P4_Oct18_epi@meta.data$res.0.8,P4_Oct18_epi@meta.data$res.1.2)
+```
+
+```{r}
+res.used <- 1.4
+```
+
+```{r}
+P4_Oct18_epi <- FindClusters(object = P4_Oct18_epi, reduction.type = "pca", dims.use = 1:n.pcs.sub, 
+                     resolution = res.used, print.output = 0, force.recalc = T)
+```
+```{r}
+P4_Oct18_epi <- RunTSNE(object = P4_Oct18_epi, dims.use = 1:n.pcs.sub, perplexity=30)
+```
+```{r, fig.width=10,fig.height=6}
+TSNEPlot(object = P4_Oct18_epi, do.label = T,pt.size = 0.4,group.by="res.1.4")
+```
+```{r,fig.height=15,fig.width=40}
+DoHeatmap(object = P4_Oct18_epi, genes.use = c("Epcam","Trp63","Krt5","Krt14","Bmp7","Smoc2","Sostdc1","Clic3","Mki67","Top2a","Spdef","Creb3l1","Krt4","Krt13","Cited1","Klk10","Klk13","Klk11","Dnajb9","Muc16","Muc5b","Gp2","Tff2","Cgref1","Galnt6","B3gnt6","Ptgdr","Cd177","Foxj1","Foxn4"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by = "res.1.4",cex.row = 30,group.order = c(11,5,7,12,0,6,4,2,9,10,8,1,13,3),group.cex = 30
+  )
+```
+
+```{r}
+table(P4_Oct18_epi@meta.data$res.0.8,P4_Oct18_epi@meta.data$res.1.4)
+```
+
+```{r}
+table(P4_Oct18_epi@meta.data$genotype,P4_Oct18_epi@meta.data$res.1.4)
+```
+```{r}
+P4_Oct18_epi@meta.data$specific_type<-mapvalues(P4_Oct18_epi@meta.data$res.0.8,from=c("0","1","2","3","4","5","6","7","8","9"),to=c("Secretory","Secretory-Krt4","Ciliated","Secretory-Krt4","CiliaSecretory","Secretory-Krt4","Basal","Basal","Ciliated","Ciliated-Foxn4"))
+```
+
+```{r,fig.width=5,fig.height=5}
+ggplot(data=P4_Oct18_epi@meta.data,aes(genotype,fill=specific_type))+ 
+    geom_bar(position="fill")+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+P4_Oct18_epi@meta.data$specific_type_1.4<-mapvalues(P4_Oct18_epi@meta.data$res.1.4,from=c("0","1","2","3","4","5","6","7","8","9","10","11","12","13"),to=c("Secretory","Ciliated","Secretory","CiliaSecretory","Secretory","CyclingSecretory","Secretory","Basal-Sostdc1","Ciliated","Secretory-Krt4","Ciliated","CyclingBasal","Basal","Ciliated"))
+```
+##### to support this identification:
+```{r,fig.height=3,fig.width=8}
+P4_Oct18_epi<-SetAllIdent(object = P4_Oct18_epi, id = "specific_type_1.4")
+
+P4_Oct18_epi@ident=factor(P4_Oct18_epi@ident,levels(P4_Oct18_epi@ident)[c(3,4,7,8,1,2,6,5)])
+DotPlot(object = P4_Oct18_epi, cols.use = c("lightgrey","red"),genes.plot = c("Foxj1","Ptgdr","B3gnt6","Galnt6","Cgref1","Gp2","Tff2","Muc5b","Muc16","Cited1","Krt4","Creb3l1","Spdef","Clic3","Ccl20","Sostdc1","Smoc2","Krt14","Bmp7","Trp63","Krt5","Mki67","Top2a"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+```
+```{r,fig.height=3,fig.width=6.5}
+P4_Oct18_epi<-SetAllIdent(object = P4_Oct18_epi, id = "specific_type_1.4")
+
+P4_Oct18_epi@ident=factor(P4_Oct18_epi@ident,levels(P4_Oct18_epi@ident)[c(3,4,7,8,1,2,6,5)])
+DotPlot(object = P4_Oct18_epi, cols.use = c("lightgrey","red"),genes.plot = c("Foxj1","B3gnt6","Cgref1","Gp2","Tff2","Muc5b","Krt4","Creb3l1","Spdef","Clic3","Sostdc1","Smoc2","Trp63","Krt5","Mki67","Top2a"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+```
+
+```{r}
+table(P4_Oct18_epi@meta.data$specific_type_1.4,P4_Oct18_epi@meta.data$genotype)
+```
+```{r,fig.width=5,fig.height=5}
+ggplot(data=P4_Oct18_epi@meta.data,aes(genotype,fill=specific_type_1.4))+ 
+    geom_bar(position="fill")+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r,fig.width=5,fig.height=5}
+save(P4_Oct18_epi,file="P4_epi_mm10.1.2.0.RData")
+```
+
+
+
+
+
+
+

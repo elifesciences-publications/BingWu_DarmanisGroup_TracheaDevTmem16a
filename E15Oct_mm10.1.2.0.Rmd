@@ -1,0 +1,226 @@
+---
+title: "E15_Oct10_10X"
+output: html_document
+---
+##### alignment reference is mm10.1.2.0, so there are no transgenes.
+```{r}
+library(Seurat)
+library(dplyr)
+```
+
+```{r}
+library(plyr)
+library(R.utils)
+```
+
+```{r}
+setwd("/Volumes/GoogleDrive/My Drive/research/Mu_He/10Xsequencing/E15/mm10.1.2.0")
+ZipF<-list.files(path=".",pattern="*.gz",full.names = T,recursive = T)
+ldply(.data=ZipF, .fun=gunzip)  #This just unzips locally
+```
+
+```{r}
+setwd("/Volumes/GoogleDrive/My Drive/research/Mu_He/10Xsequencing/E15/mm10.1.2.0")
+file_10Xdir<-c("E15_Oct10_wt_green","E15_Oct10_wt_red","E15_Oct10_mut_green","E15_Oct10_mut_red")
+names(file_10Xdir)<-c("E15_Oct10_wt_green","E15_Oct10_wt_red","E15_Oct10_mut_green","E15_Oct10_mut_red")
+E15_mm10.1.2.0.data <- Read10X(data.dir = file_10Xdir)
+dim(E15_mm10.1.2.0.data)
+```
+#####[1] 27998  9899
+
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- CreateSeuratObject(raw.data = E15_mm10.1.2.0.data, min.cells = 1, min.genes = 1000, 
+    project = "E15_Oct10_mm10.1.2.0_Trachea")
+E15_Oct10_mm10.1.2.0_Trachea@raw.data@Dim
+```
+#####20708 genes, 9522 cells.
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- FilterCells(object = E15_Oct10_mm10.1.2.0_Trachea, subset.names = c("nGene","nUMI"), 
+    low.thresholds = c(1000,5000), high.thresholds = c(Inf, Inf))
+E15_Oct10_mm10.1.2.0_Trachea@data@Dim
+```
+##### 9196 cells now
+
+##### load doublet scores
+```{r}
+load("./E15/mm10.1.2.0/E15_Oct10_doubletScore.RData")
+E15_Oct10_mm10.1.2.0_Trachea<-AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = E15_Oct10_doubletScore, col.name = "doublet_score")
+sum(is.na(E15_Oct10_mm10.1.2.0_Trachea@meta.data$doublet_score))
+```
+
+```{r}
+head(E15_Oct10_mm10.1.2.0_Trachea@cell.names)
+```
+```{r}
+age<-cell_name[,1]
+names(age)<-E15_Oct10_mm10.1.2.0_Trachea@cell.names
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea<-AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = age, col.name = "age")
+```
+
+```{r}
+sample_date<-cell_name[,2]
+names(sample_date)<-E15_Oct10_mm10.1.2.0_Trachea@cell.names
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea<-AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = sample_date, col.name = "sample_date")
+```
+
+```{r}
+cell_name<-read.table(text=E15_Oct10_mm10.1.2.0_Trachea@cell.names,sep="_",colClasses = "character")
+table(cell_name[,3:4])
+genotype<-cell_name[,3]
+names(genotype)<-E15_Oct10_mm10.1.2.0_Trachea@cell.names
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea<-AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = genotype, col.name = "genotype")
+```
+
+```{r}
+gate<-cell_name[,4]
+names(gate)<-E15_Oct10_mm10.1.2.0_Trachea@cell.names
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea<-AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = gate, col.name = "gate")
+```
+
+```{r}
+seq_group<-paste(cell_name[,1],cell_name[,2],cell_name[,3],cell_name[,4],sep="_")
+names(seq_group)<-E15_Oct10_mm10.1.2.0_Trachea@cell.names
+head(seq_group)
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea<-AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = seq_group, col.name = "seq_group")
+```
+
+
+```{r}
+ribo.genes <- grep(pattern = "^Rp[sl][[:digit:]]", x = rownames(x = E15_Oct10_mm10.1.2.0_Trachea@data), value = TRUE)
+percent.ribo <- Matrix::colSums(E15_Oct10_mm10.1.2.0_Trachea@raw.data[ribo.genes, ])/Matrix::colSums(E15_Oct10_mm10.1.2.0_Trachea@raw.data)
+E15_Oct10_mm10.1.2.0_Trachea <- AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = percent.ribo, col.name = "percent.ribo")
+```
+
+```{r}
+mito.genes <- grep(pattern = "^mt-", x = rownames(x = E15_Oct10_mm10.1.2.0_Trachea@data), value = TRUE)
+percent.mito <- Matrix::colSums(E15_Oct10_mm10.1.2.0_Trachea@raw.data[mito.genes, ])/Matrix::colSums(E15_Oct10_mm10.1.2.0_Trachea@raw.data)
+E15_Oct10_mm10.1.2.0_Trachea <- AddMetaData(object = E15_Oct10_mm10.1.2.0_Trachea, metadata = percent.mito, col.name = "percent.mito")
+```
+
+```{r}
+aggregate(E15_Oct10_mm10.1.2.0_Trachea@meta.data[, c(1:2,10:11)], list(E15_Oct10_mm10.1.2.0_Trachea@meta.data$seq_group), median)
+```
+
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- NormalizeData(object = E15_Oct10_mm10.1.2.0_Trachea)
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- ScaleData(object = E15_Oct10_mm10.1.2.0_Trachea)
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- FindVariableGenes(object = E15_Oct10_mm10.1.2.0_Trachea, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- RunPCA(object = E15_Oct10_mm10.1.2.0_Trachea, do.print = FALSE)
+E15_Oct10_mm10.1.2.0_Trachea <- ProjectPCA(object = E15_Oct10_mm10.1.2.0_Trachea, do.print = FALSE)
+```
+```{r}
+PCHeatmap(object = E15_Oct10_mm10.1.2.0_Trachea, pc.use = 1:3, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 20)
+```
+```{r}
+PCElbowPlot(object = E15_Oct10_mm10.1.2.0_Trachea)
+```
+```{r}
+n.pcs = 19
+res.used <- 0.8
+
+E15_Oct10_mm10.1.2.0_Trachea <- FindClusters(object = E15_Oct10_mm10.1.2.0_Trachea, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+E15_Oct10_mm10.1.2.0_Trachea <- RunTSNE(object = E15_Oct10_mm10.1.2.0_Trachea, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2)
+
+```
+
+```{r, fig.height=4, fig.width=6}
+TSNEPlot(object = E15_Oct10_mm10.1.2.0_Trachea, do.label = T)
+```
+```{r, fig.height=4, fig.width=6}
+TSNEPlot(object = E15_Oct10_mm10.1.2.0_Trachea, do.label = F,group.by="genotype")
+```
+
+```{r}
+table(E15_Oct10_mm10.1.2.0_Trachea@meta.data$res.0.8,E15_Oct10_mm10.1.2.0_Trachea@meta.data$seq_group)
+```
+```{r}
+prop.table(table(E15_Oct10_mm10.1.2.0_Trachea@meta.data$res.0.8,E15_Oct10_mm10.1.2.0_Trachea@meta.data$seq_group),2)
+```
+```{r,fig.height=8,fig.width=30}
+DoHeatmap(object = E15_Oct10_mm10.1.2.0_Trachea, genes.use = c("Ano1","Cftr","Epcam","Trp63","Krt8","Scgb3a2","Snap25","Tubb3","Calca","Chga","Tg","Sox9","Acan","Mia","Col2a1","Col11a1","Myh11","Acta2","Notch3","Rgs5","C1qa","Fcer1g","Pecam1","Sox10","Plp1","Mpz","Top2a","Mki67","Wnt2","Tek","Cd34"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,cex.row = 35,group.cex = 40,group.order = c(14,0,1,2,3,6,7,17,10,11,8,5,4,9,12,13,15,16))
+```
+```{r}
+E15_res08_c17<-FindMarkers(E15_Oct10_mm10.1.2.0_Trachea,ident.1=c(17),only.pos = TRUE)
+E15_res08_c17
+```
+
+
+```{r}
+df_E15<-FetchData(E15_Oct10_mm10.1.2.0_Trachea,c("Piezo2","Runx1","Runx2","Clec11a","Gli2","Gli3","Acan","Mia","Wif1","Sox9","Col2a1","Myh11","Tagln","Sfrp2","Fgfr3","res.0.8","genotype","seq_group"))
+```
+```{r, fig.height=5, fig.width=10}
+library(ggpubr)
+```
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Piezo2))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Wif1))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Fgfr3))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Tagln))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Myh11))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Mia))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Sox9))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+```{r, fig.height=4, fig.width=8}
+ggplot(df_E15,aes(genotype,Acan))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=5,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+#####
+```{r}
+save(E15_Oct10_mm10.1.2.0_Trachea,file="E15_Oct10_10X_Trachea.RData")
+load("E15_Oct10_10X_Trachea.RData")
+```
+
+
+
+
+

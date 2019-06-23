@@ -1,0 +1,527 @@
+---
+title: "Hs_Apr3"
+output: html_notebook
+---
+#### Human fetal trachea samples collected on Apr3. v3 chemistry.
+```{r}
+library(Seurat)
+library(dplyr)
+```
+```{r}
+ZipF<-list.files(path=".",pattern="*.gz",full.names = T,recursive = T)
+ZipF
+```
+```{r}
+library(plyr)
+library(R.utils)
+ldply(.data=ZipF, .fun=gunzip)  #This just unzips locally
+```
+
+```{r}
+##### First I manually changed all featurres.tsv to genes.tsv. Otherwise Read10X (Seurat v2) would not recognize.
+# Load data
+file_10Xdir_Hs<-c("GA21wk_v3","GA23wk_v3")
+names(file_10Xdir_Hs)<-c("GA21wk_v3","GA23wk_v3")
+Hs_Apr3_v3.data <- Read10X(data.dir = file_10Xdir_Hs)
+```
+
+```{r}
+dim(Hs_Apr3_v3.data)
+```
+##### 26577 genes for HG38-plus
+##### 38892 "cells"/barcodes as filtered by Cell Ranger
+
+```{r}
+Hs_GA2123_Trachea_v3 <- CreateSeuratObject(raw.data = Hs_Apr3_v3.data, min.cells = 1, min.genes = 1, 
+    project = "Hs_GA2123_Trachea_v3chemistry")
+Hs_GA2123_Trachea_v3@raw.data@Dim
+```
+```{r}
+head(Hs_GA2123_Trachea_v3@cell.names)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- FilterCells(object = Hs_GA2123_Trachea_v3, subset.names = c("nGene","nUMI"), 
+    low.thresholds = c(1000,4000), high.thresholds = c(Inf,Inf))
+Hs_GA2123_Trachea_v3@data@Dim
+```
+
+```{r}
+cell_name<-read.table(text=Hs_GA2123_Trachea_v3@cell.names,sep="_",colClasses = "character")
+age<-cell_name[,1]
+names(age)<-Hs_GA2123_Trachea_v3@cell.names
+```
+```{r}
+Hs_GA2123_Trachea_v3<-AddMetaData(object = Hs_GA2123_Trachea_v3, metadata = age, col.name = "age")
+```
+
+```{r}
+table(Hs_GA2123_Trachea_v3@meta.data$age)
+```
+
+```{r}
+ribo.genes <- grep(pattern = "^RP[SL][[:digit:]]", x = rownames(x = Hs_GA2123_Trachea_v3@data), value = TRUE)
+percent.ribo <- Matrix::colSums(Hs_GA2123_Trachea_v3@raw.data[ribo.genes, ])/Matrix::colSums(Hs_GA2123_Trachea_v3@raw.data)
+Hs_GA2123_Trachea_v3 <- AddMetaData(object = Hs_GA2123_Trachea_v3, metadata = percent.ribo, col.name = "percent.ribo")
+```
+
+```{r}
+aggregate(Hs_GA2123_Trachea_v3@meta.data[, c(1:2,5)], list(Hs_GA2123_Trachea_v3@meta.data$age), median)
+
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- NormalizeData(object = Hs_GA2123_Trachea_v3)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- ScaleData(object = Hs_GA2123_Trachea_v3)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- FindVariableGenes(object = Hs_GA2123_Trachea_v3, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- RunPCA(object = Hs_GA2123_Trachea_v3, do.print = FALSE)
+Hs_GA2123_Trachea_v3 <- ProjectPCA(object = Hs_GA2123_Trachea_v3, do.print = FALSE)
+```
+```{r,fig.height=50,fig.width=15}
+PCHeatmap(object = Hs_GA2123_Trachea_v3, pc.use = 1:10, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 25)
+
+```
+
+```{r}
+PCElbowPlot(object = Hs_GA2123_Trachea_v3)
+```
+
+```{r}
+n.pcs = 20
+res.used <- 0.8
+
+Hs_GA2123_Trachea_v3 <- FindClusters(object = Hs_GA2123_Trachea_v3, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+Hs_GA2123_Trachea_v3 <- RunTSNE(object = Hs_GA2123_Trachea_v3, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3, do.label = T,group.by="res.0.8",pt.size = 0.2)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3, do.label = F,group.by="age",pt.size = 0.1)
+```
+
+```{r}
+n.pcs = 20
+res.used <- 1.0
+
+Hs_GA2123_Trachea_v3 <- FindClusters(object = Hs_GA2123_Trachea_v3, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE,force.recalc=T)
+```
+```{r}
+Hs_GA2123_Trachea_v3 <- RunTSNE(object = Hs_GA2123_Trachea_v3, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2,k.param=10)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3, do.label = T,group.by="res.1")
+
+```
+
+```{r,fig.height=15,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3, genes.use = c("ANO1","CFTR","EPCAM","TP63","FOXJ1","FOXN4","SCGB1A1","LTF","SNAP25","ASCL1","CHGA","PLP1","MPZ","SOX10","C1QA","FCER1G","PECAM1","LYVE1","RGS5","NOTCH3","ACTA2","ACTG2","DES","PDLIM3","FGL2","PCDH7","MYH11","COL11A1","SOX9","SOX5","SOX6","COL2A1","ACAN","SERPINF1","COL1A1","THBS2","KERA","DCN","LUM","CD34","WNT2","THY1","PI16","CLEC3B","MKI67","TOP2A","TWIST2"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.1",group.cex = 25,cex.row=25,group.order = c(9,16,12,14,10,19,3,22,20,21,5,7,15,17,8,18,4,0,2,1,13,11,6)
+  )
+```
+
+```{r}
+Hs_GA2123_Trachea_v3<-SetAllIdent(Hs_GA2123_Trachea_v3,id="res.1")
+GA2123wk_v3.res1.clust.markers <- FindAllMarkers(object = Hs_GA2123_Trachea_v3, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+
+```{r}
+GA2123wk_v3.res1.clust.markers %>% group_by(cluster) %>% top_n(20, avg_logFC)
+```
+```{r}
+write.table(GA2123wk_v3.res1.clust.markers,"GA2123wk_v3.res1.markers.txt",sep="\t")
+
+```
+```{r}
+Hs_v3_res1_8_18<-FindMarkers(Hs_GA2123_Trachea_v3,ident.1=c(8),ident.2=c(18),only.pos = F)
+Hs_v3_res1_8_18
+```
+
+```{r}
+Hs_v3_res1_2over1<-FindMarkers(Hs_GA2123_Trachea_v3,ident.1=c(2),ident.2=c(1),only.pos = T)
+Hs_v3_res1_2over1
+```
+
+```{r}
+Hs_v3_res1_21_20<-FindMarkers(Hs_GA2123_Trachea_v3,ident.1=c(21),ident.2=c(20),only.pos = T)
+Hs_v3_res1_21_20
+```
+
+```{r}
+n.pcs = 20
+res.used <- 1.2
+
+Hs_GA2123_Trachea_v3 <- FindClusters(object = Hs_GA2123_Trachea_v3, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- RunTSNE(object = Hs_GA2123_Trachea_v3, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2,k.param=10)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3, do.label = T,group.by="res.1.2")
+
+```
+
+```{r}
+n.pcs = 20
+res.used <- 1.4
+
+Hs_GA2123_Trachea_v3 <- FindClusters(object = Hs_GA2123_Trachea_v3, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3 <- RunTSNE(object = Hs_GA2123_Trachea_v3, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2,k.param=10)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3, do.label = T,group.by="res.1.4")
+
+```
+
+```{r}
+load("GA2123wk_apr3_v3_doubletScore.RData")
+Hs_GA2123_Trachea_v3<-AddMetaData(object = Hs_GA2123_Trachea_v3, metadata = GA2123wk_apr3_v3_doubletScore, col.name = "doublet_score")
+sum(is.na(Hs_GA2123_Trachea_v3@meta.data$doublet_score))
+```
+
+
+```{r,fig.height=5, fig.width=20}
+Hs_GA2123_Trachea_v3<-SetAllIdent(Hs_GA2123_Trachea_v3,id="age")
+VlnPlot(object = Hs_GA2123_Trachea_v3, features.plot = c("doublet_score"), nCol = 1,group.by="res.1.4",point.size.use=0.3,ident.include = "GA21wk")
+```
+
+```{r,fig.height=5, fig.width=20}
+VlnPlot(object = Hs_GA2123_Trachea_v3, features.plot = c("doublet_score"), nCol = 1,group.by="res.1.4",point.size.use=0.3,ident.include = "GA23wk")
+```
+
+```{r,fig.height=20,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3, genes.use = c("ANO1","CFTR","EPCAM","KRT8","KRT18","TP63","KRT5","KRT14","SOSTDC1","KRT4","KRT13","SPDEF","CREB3L1","MUC5B","FOXJ1","FOXN4","SHISA8","MCIDAS","TUBB3","SNAP25","ASCL1","CHGA","PLP1","MPZ","C1QA","FCER1G","CD3G","PECAM1","NRP1","LYVE1","RGS5","NOTCH3","ACTA2","TAGLN","MYH11","COL8A1","COL11A1","SOX9","COL2A1","ACAN","MIA","DCN","LUM","CD34","WNT2","THY1","PI16","CLEC3B","TK1","MKI67","TOP2A","ALAS2"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.1.4",group.cex = 35,cex.row=25,group.order = c(8,14,17,19,10,21,9,11,24,22,23,3,5,16,18,6,20,13,7,0,1,2,15,12,4)
+  )
+```
+
+
+```{r,fig.height=15, fig.width=20}
+VlnPlot(object = Hs_GA2123_Trachea_v3, features.plot = c("SOX10","PHOX2A", "PHOX2B","CHGA","ASCL1","RET"), nCol = 1,group.by="res.1.4",point.size.use=0.3)
+```
+```{r,fig.height=8,fig.width=40}
+    DoHeatmap(object = Hs_GA2123_Trachea_v3, genes.use = c("EPCAM","TUBB3","SNAP25","ASCL1","CHGA","PHOX2A","PHOX2B","PLP1","MPZ"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.1.4",group.cex = 35,cex.row=25,cells.use = Hs_GA2123_Trachea_v3@cell.names[Hs_GA2123_Trachea_v3@meta.data$res.1.4 %in% c(10)]
+  )
+```
+
+##### subset the Non-EPCAM cells:
+```{r}
+Hs_GA2123_Trachea_v3 <- SetAllIdent(object = Hs_GA2123_Trachea_v3, id = "res.1.4")
+Hs_GA2123_Trachea_v3_nonEpcam<-SubsetData(object=Hs_GA2123_Trachea_v3,ident.use=c(0:7,9:13,15,16,18,20:24))
+table(Hs_GA2123_Trachea_v3_nonEpcam@meta.data$res.1.4)
+```
+
+```{r}
+colnames(Hs_GA2123_Trachea_v3_nonEpcam@meta.data)[colnames(Hs_GA2123_Trachea_v3_nonEpcam@meta.data) == 'res.0.8'] <- 'orig.0.8'
+colnames(Hs_GA2123_Trachea_v3_nonEpcam@meta.data)[colnames(Hs_GA2123_Trachea_v3_nonEpcam@meta.data) == 'res.1.4'] <- 'orig.1.4'
+colnames(Hs_GA2123_Trachea_v3_nonEpcam@meta.data)[colnames(Hs_GA2123_Trachea_v3_nonEpcam@meta.data) == 'res.1.2'] <- 'orig.1.2'
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_nonEpcam <- ScaleData(object = Hs_GA2123_Trachea_v3_nonEpcam)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_nonEpcam <- FindVariableGenes(object = Hs_GA2123_Trachea_v3_nonEpcam, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+
+######run PCA on the set of genes
+```{r}
+Hs_GA2123_Trachea_v3_nonEpcam <- RunPCA(object = Hs_GA2123_Trachea_v3_nonEpcam, do.print = FALSE)
+#PCAPlot(Hs_GA2123_Trachea_v3_nonEpcam)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_nonEpcam <- ProjectPCA(object = Hs_GA2123_Trachea_v3_nonEpcam, do.print = F)
+```
+
+```{r}
+PCElbowPlot(object = Hs_GA2123_Trachea_v3_nonEpcam)
+```
+```{r,fig.height=30,fig.width=15}
+PCHeatmap(object = Hs_GA2123_Trachea_v3_nonEpcam, pc.use = 1:20, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 25)
+
+```
+
+```{r}
+n.pcs = 20
+res.used <- 0.8
+
+Hs_GA2123_Trachea_v3_nonEpcam <- FindClusters(object = Hs_GA2123_Trachea_v3_nonEpcam, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE,force.recalc = T)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_nonEpcam <- RunTSNE(object = Hs_GA2123_Trachea_v3_nonEpcam, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2,k.param=10)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3_nonEpcam, do.label = T,group.by="res.0.8")
+
+```
+
+```{r,fig.height=20,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3_nonEpcam, genes.use = c("ANO1","CFTR","TUBB3","SNAP25","ASCL1","CHGA","PLP1","MPZ","C1QA","FCER1G","CD3G","PECAM1","NRP1","LYVE1","RGS5","NOTCH3","ACTA2","TAGLN","MYH11","COL8A1","COL11A1","SOX9","COL2A1","ACAN","MIA","DCN","LUM","CD34","WNT2","THY1","PI16","CLEC3B","TK1","MKI67","TOP2A","ADIPOQ","CAR3"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.0.8",group.cex = 35,cex.row=25,group.order = c(9,14,2,17,15,16,13,6,8,5,4,0,3,1,10,11,12,7)
+  )
+```
+
+```{r}
+table(Hs_GA2123_Trachea_v3_nonEpcam@meta.data$orig.1.4,Hs_GA2123_Trachea_v3_nonEpcam@meta.data$res.0.8)
+```
+
+
+```{r}
+library(ggalluvial)
+```
+```{r, fig.height=9, fig.width=6}
+ggplot(data=Hs_GA2123_Trachea_v3_nonEpcam@meta.data,aes(axis1=orig.1.4,axis2=res.0.8))+geom_alluvium(aes(fill=res.0.8))+geom_stratum(width = 1/12, fill = "black", color = "grey") +geom_label(stat = "stratum", label.strata = TRUE)+scale_x_discrete(limits = c("orig.1.4", "res.0.8"), expand = c(.05, .05))
+```
+
+##### Now subset the basal, ciliated, and secretory:
+```{r}
+Hs_GA2123_Trachea_v3 <- SetAllIdent(object = Hs_GA2123_Trachea_v3, id = "res.1.4")
+Hs_GA2123_Trachea_v3_sub1<-SubsetData(object=Hs_GA2123_Trachea_v3,ident.use=c(8,14,19))
+table(Hs_GA2123_Trachea_v3_sub1@meta.data$res.1.4)
+```
+
+```{r}
+colnames(Hs_GA2123_Trachea_v3_sub1@meta.data)[colnames(Hs_GA2123_Trachea_v3_sub1@meta.data) == 'res.0.8'] <- 'orig.0.8'
+colnames(Hs_GA2123_Trachea_v3_sub1@meta.data)[colnames(Hs_GA2123_Trachea_v3_sub1@meta.data) == 'res.1.4'] <- 'orig.1.4'
+colnames(Hs_GA2123_Trachea_v3_sub1@meta.data)[colnames(Hs_GA2123_Trachea_v3_sub1@meta.data) == 'res.1.2'] <- 'orig.1.2'
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_sub1 <- ScaleData(object = Hs_GA2123_Trachea_v3_sub1)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_sub1 <- FindVariableGenes(object = Hs_GA2123_Trachea_v3_sub1, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+
+######run PCA on the set of genes
+```{r}
+Hs_GA2123_Trachea_v3_sub1 <- RunPCA(object = Hs_GA2123_Trachea_v3_sub1, do.print = FALSE)
+#PCAPlot(Hs_GA2123_Trachea_v3_sub1)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_sub1 <- ProjectPCA(object = Hs_GA2123_Trachea_v3_sub1, do.print = F)
+```
+
+```{r}
+PCElbowPlot(object = Hs_GA2123_Trachea_v3_sub1)
+```
+```{r,fig.height=30,fig.width=15}
+PCHeatmap(object = Hs_GA2123_Trachea_v3_sub1, pc.use = 1:12, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 25)
+
+```
+
+```{r}
+n.pcs = 16
+res.used <- 0.8
+
+Hs_GA2123_Trachea_v3_sub1 <- FindClusters(object = Hs_GA2123_Trachea_v3_sub1, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+Hs_GA2123_Trachea_v3_sub1 <- RunTSNE(object = Hs_GA2123_Trachea_v3_sub1, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2,k.param=10)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3_sub1, do.label = T)
+
+```
+
+```{r,fig.height=20,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3_sub1, genes.use = c("TP63","KRT15","KRT5","KRT17","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","KRT4","MUC1","MUC4","MUC20","SERPINB3","GSTP1","ALOX15","CD9","MYH11","ACTG2","MYLK","TAGLN","LTF","AZGP1","DMBT1","FCGBP","CCL28","AQP5","MUC5B","SPDEF","RNASE1","LYZ","TIMP3","OGN","COL14A1","BGN","COL11A1","LUM","ACAN","CFTR","ANO1","TACSTD2"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.0.8",group.cex = 60,cex.row=30,group.order = c(4,2,6,1,7,5,0,3)
+  )
+```
+
+```{r,fig.height=4,fig.width=16}
+DotPlot(object = Hs_GA2123_Trachea_v3_sub1, cols.use = c("forestgreen","magenta3"),genes.plot = c("TP63","KRT15","KRT5","KRT17","KRT14","SOSTDC1","FOXJ1","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","CFAP53","CETN2","KRT4","KRT13","MUC1","MUC4","MUC16","MUC20","SERPINB3","MYH11","ACTG2","MYLK","APOE","TAGLN","LTF","AZGP1","DMBT1","KCNN4","FCGBP","LRRC26","KRT7","CCL28","AQP5","MUC5B","SPDEF","LYZ","TIMP3","OGN","COL14A1","BGN","MGP","COL11A1","LUM","ACAN","CFTR","ANO1"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+```
+
+```{r}
+prop.table(table(Hs_GA2123_Trachea_v3_sub1@meta.data$age,Hs_GA2123_Trachea_v3_sub1@meta.data$res.0.8),1)
+
+```
+
+```{r}
+n.pcs = 16
+res.used <- 1.2
+
+Hs_GA2123_Trachea_v3_sub1 <- FindClusters(object = Hs_GA2123_Trachea_v3_sub1, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3_sub1 <- RunTSNE(object = Hs_GA2123_Trachea_v3_sub1, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2,k.param=10)
+
+```
+
+```{r}
+TSNEPlot(object = Hs_GA2123_Trachea_v3_sub1, do.label = T,group.by="res.1.2")
+
+```
+
+```{r,fig.height=20,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3_sub1, genes.use = c("TP63","KRT15","KRT5","KRT17","KRT14","SOSTDC1","SMOC2","SOX9","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","KRT4","MUC1","MUC4","MUC20","SERPINB3","GSTP1","ALOX15","CD9","MYH11","ACTG2","MYLK","TAGLN","LTF","AZGP1","DMBT1","FCGBP","CCL28","AQP5","MUC5B","SPDEF","RNASE1","LYZ","TIMP3","OGN","COL14A1","BGN","COL11A1","LUM","ACAN","CFTR","ANO1","TACSTD2","SERPINB4","SERPINB13","NPPC"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.1.2",group.cex = 60,cex.row=30,group.order = c(2,4,6,1,7,8,5,0,3)
+  )
+```
+
+```{r}
+Hs_v3_sub1_res1.2_c8over2_4<-FindMarkers(Hs_GA2123_Trachea_v3_sub1,ident.1=c(8),ident.2 = c(2,4),only.pos = TRUE)
+Hs_v3_sub1_res1.2_c8over2_4
+```
+
+```{r}
+library(plyr)
+Hs_GA2123_Trachea_v3_sub1@meta.data$cell_type<-mapvalues(Hs_GA2123_Trachea_v3_sub1@meta.data$res.1.2,from=c("0","1","2","3","4","5","6","7","8"),to=c("Secretory_SMG","Ciliated","Basal_SE","Epcam_ECM","Basal_SE","Myoepithelial","Ciliated_Foxn4","Secretory_SE","Basal_SMG"))
+```
+
+```{r,fig.height=30,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3_sub1, genes.use = c("FOXN4","PLK4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","TP63","KRT15","KRT5","KRT17","KRT14","SOSTDC1","SMOC2","NPPC","KRT4","MUC1","MUC4","MUC20","SERPINB3","SERPINB4","SERPINB13","GSTP1","ALOX15","CD9","SOX9","LTF","AQP5","LRRC26","AZGP1","DMBT1","FCGBP","CCL28","MUC5B","SPDEF","RNASE1","LYZ","MYH11","ACTG2","MYLK","TAGLN","TIMP3","OGN","COL14A1","BGN","COL11A1","LUM","ACAN","CFTR","ANO1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="cell_type",group.cex = 60,cex.row=30,group.order = c("Ciliated_Foxn4","Ciliated","Basal_SE","Secretory_SE","Basal_SMG","Secretory_SMG","Myoepithelial","Epcam_ECM"),
+  )
+```
+
+##### to annotate Hs_GA2123_Trachea_v3
+```{r}
+Hs_v3_type_sub1<-Hs_GA2123_Trachea_v3_sub1@meta.data$cell_type
+names(Hs_v3_type_sub1)<-Hs_GA2123_Trachea_v3_sub1@cell.names
+```
+
+```{r}
+Hs_GA2123_Trachea_v3@meta.data$cell_type<-mapvalues(Hs_GA2123_Trachea_v3@meta.data$res.1,from=c("0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22"),to=c("Fibroblast","Fibroblast","Fibroblast","VascularEndothelial","Fibroblast","Fibroblast","CyclingFibroblast","Fibroblast","Chondrocyte","Basal","Schwann/Neural","Fibroblast","Secretory","MesenchymalProgenitor","Stem","Fibroblast","Ciliated","Fibroblast","Chondrocyte","Immune","Muscle","Muscle","LymphaticEndothelial"))
+```
+
+```{r}
+Hs_GA2123_Trachea_v3<-AddMetaData(object = Hs_GA2123_Trachea_v3, metadata = Hs_v3_type_sub1, col.name = "specific_type")
+```
+```{r}
+table(Hs_GA2123_Trachea_v3@meta.data$specific_type)
+```
+
+```{r}
+Hs_GA2123_Trachea_v3@meta.data$specific_type <- ifelse(is.na(Hs_GA2123_Trachea_v3@meta.data$specific_type), as.character(Hs_GA2123_Trachea_v3@meta.data$cell_type), as.character(Hs_GA2123_Trachea_v3@meta.data$specific_type))
+```
+
+##### now we have annotation for all cells:
+```{r}
+table(Hs_GA2123_Trachea_v3@meta.data$specific_type)
+```
+
+
+```{r,fig.height=20,fig.width=60}
+DoHeatmap(object = Hs_GA2123_Trachea_v3, genes.use = c("CFTR","ANO1","EPCAM","TP63","KRT5","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","MUC16","MUC1","MUC4","MUC20","SERPINB3","CD9","KRT14","SOSTDC1","MUC5B","SPDEF","RNASE1","LYZ","SNAP25","ASCL1","PLP1","MPZ","FCER1G","C1QA","PECAM1","LYVE1","ACTA2","RGS5","NOTCH3","SOX9","COL2A1","ACAN","WNT2","THY1","TWIST2","MKI67"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="specific_type",group.cex = 30,cex.row=30,group.order = c("Basal_SE","Ciliated_Foxn4","Ciliated","Secretory_SE","Basal_SMG","Secretory_SMG","Myoepithelial","Epcam_ECM","Stem","Schwann/Neural","Immune","VascularEndothelial","LymphaticEndothelial","Muscle","Chondrocyte","MesenchymalProgenitor","Fibroblast","CyclingFibroblast")
+  )
+```
+
+```{r}
+print(levels(Hs_GA2123_Trachea_v3@ident))
+```
+
+```{r,fig.height=6,fig.width=12}
+Hs_GA2123_Trachea_v3<-SetAllIdent(object = Hs_GA2123_Trachea_v3, id = "specific_type")
+Hs_GA2123_Trachea_v3@ident = factor(Hs_GA2123_Trachea_v3@ident,levels(Hs_GA2123_Trachea_v3@ident)[c(1,15,5,4,2,16,13,7,17,14,9,10,18,12,3,11,8,6)])
+
+```
+
+```{r,fig.height=5,fig.width=12}
+DotPlot(object = Hs_GA2123_Trachea_v3, cols.use = c("lightgray","red"),genes.plot = c("CFTR","ANO1","EPCAM","TP63","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","MUC16","SERPINB3","SOX9","KRT14","SOSTDC1","MUC5B","SPDEF","LTF","LYZ","ACTA2","POU5F1","ESRG","SNAP25","CHGA","PLP1","MPZ","FCER1G","C1QA","PECAM1","LYVE1","MYH11","RGS5","NOTCH3","COL2A1","ACAN","WNT2","CD34","THY1","TWIST2","MKI67"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+```
+
+```{r,fig.height=6,fig.width=8}
+DotPlot(object = Hs_GA2123_Trachea_v3, cols.use = c("forestgreen","magenta3"),genes.plot = c("FOXJ1","LTF","TP63","WNT2","PI16","CLEC3B","EPCAM","TERC","TERT","CLDN6","POU5F1","LIN28A","ESRG","L1TD1","DPPA4","UTF1","FOXD3-AS1","CRABP1","THY1","TUBB2B","UCHL1","TUBB3","SNAP25","PLP1"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+```
+
+```{r}
+df_Hs<-FetchData(Hs_GA2123_Trachea_v3,c("ANO1","CFTR","SERPINB3","MUC16","specific_type"))
+
+```
+
+```{r, fig.height=3, fig.width=10}
+ggplot(df_Hs,aes(specific_type,CFTR))+geom_dotplot(binaxis="y",aes(fill=specific_type),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))+ stat_summary(aes(color=specific_type),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))
+```
+
+```{r}
+save(Hs_GA2123_Trachea_v3_sub1,file="seurat_GA2123wk_v3_sub1.RData")
+```
+```{r}
+save(Hs_GA2123_Trachea_v3,file="seurat_GA2123wk_v3.RData")
+```
+```{r}
+load(file="seurat_GA2123wk_v3.RData")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

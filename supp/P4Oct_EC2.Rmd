@@ -1,0 +1,644 @@
+---
+title: "P4_Trachea_10X"
+output: html_document
+---
+##### P4 trachea sample collected on Oct18 2018. Sequences aligned to mm10-plus reference which includes transgenes Gfp and Tdtom.
+```{r}
+library(Seurat)
+library(dplyr)
+```
+```{r}
+setwd("/Volumes/GoogleDrive/My Drive/research/Mu_He/10Xsequencing/P4")
+file_10Xdir<-c("WT_green","WT_red","mut_green","mut_red")
+names(file_10Xdir)<-c("WT_green","WT_red","mut_green","mut_red")
+P4_10X.data <- Read10X(data.dir = file_10Xdir)
+```
+
+```{r}
+P4_10X_Trachea <- CreateSeuratObject(raw.data = P4_10X.data, min.cells = 3, min.genes = 1000, 
+    project = "P4_10X_Trachea")
+P4_10X_Trachea@raw.data@Dim
+```
+#####17018 genes, 4574 cells.
+
+```{r}
+head(P4_10X_Trachea@cell.names)
+```
+```{r}
+cell_name<-read.table(text=P4_10X_Trachea@cell.names,sep="_",colClasses = "character")
+table(cell_name[,1:2])
+genotype<-cell_name[,1]
+names(genotype)<-P4_10X_Trachea@cell.names
+```
+```{r}
+P4_10X_Trachea<-AddMetaData(object = P4_10X_Trachea, metadata = genotype, col.name = "genotype")
+```
+
+```{r}
+gate<-cell_name[,2]
+names(gate)<-P4_10X_Trachea@cell.names
+```
+```{r}
+P4_10X_Trachea<-AddMetaData(object = P4_10X_Trachea, metadata = gate, col.name = "gate")
+```
+
+```{r}
+seq_group<-paste(cell_name[,1],cell_name[,2],sep="_")
+names(seq_group)<-P4_10X_Trachea@cell.names
+```
+```{r}
+P4_10X_Trachea<-AddMetaData(object = P4_10X_Trachea, metadata = seq_group, col.name = "seq_group")
+```
+
+```{r}
+ribo.genes <- grep(pattern = "^Rp[sl][[:digit:]]", x = rownames(x = P4_10X_Trachea@data), value = TRUE)
+percent.ribo <- Matrix::colSums(P4_10X_Trachea@raw.data[ribo.genes, ])/Matrix::colSums(P4_10X_Trachea@raw.data)
+P4_10X_Trachea <- AddMetaData(object = P4_10X_Trachea, metadata = percent.ribo, col.name = "percent.ribo")
+```
+
+
+
+```{r}
+P4_10X_Trachea <- FilterCells(object = P4_10X_Trachea, subset.names = c("nGene", "nUMI"), 
+    low.thresholds = c(1000, 3000), high.thresholds = c(Inf, Inf))
+P4_10X_Trachea@data@Dim
+```
+##### 17018 genes, 4330 cells now
+```{r}
+table(P4_10X_Trachea@meta.data$seq_group)
+```
+```{r}
+median(P4_10X_Trachea@meta.data$nGene)
+```
+```{r,fig.height=6, fig.width=12}
+VlnPlot(object = P4_10X_Trachea, features.plot = c("nGene", "nUMI","percent.ribo"), nCol = 3,x.lab.rot = T)
+```
+
+```{r}
+P4_10X_Trachea <- NormalizeData(object = P4_10X_Trachea)
+```
+```{r}
+P4_10X_Trachea <- ScaleData(object = P4_10X_Trachea)
+```
+```{r}
+P4_10X_Trachea <- FindVariableGenes(object = P4_10X_Trachea, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+```{r}
+P4_10X_Trachea <- RunPCA(object = P4_10X_Trachea, do.print = FALSE)
+P4_10X_Trachea <- ProjectPCA(object = P4_10X_Trachea, do.print = FALSE)
+```
+```{r}
+PCHeatmap(object = P4_10X_Trachea, pc.use = 1:3, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 20)
+
+```
+```{r}
+PCElbowPlot(object = P4_10X_Trachea)
+```
+```{r}
+n.pcs = 20
+res.used <- 0.8
+
+P4_10X_Trachea <- FindClusters(object = P4_10X_Trachea, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+P4_10X_Trachea <- RunTSNE(object = P4_10X_Trachea, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2)
+
+```
+
+```{r}
+TSNEPlot(object = P4_10X_Trachea, do.label = F)
+```
+```{r}
+table(P4_10X_Trachea@meta.data$seq_group)
+```
+
+```{r}
+prop.table(table(P4_10X_Trachea@meta.data$res.0.8,P4_10X_Trachea@meta.data$seq_group),2)
+```
+
+```{r}
+table(P4_10X_Trachea@meta.data$res.0.8,P4_10X_Trachea@meta.data$seq_group)
+```
+
+```{r,fig.height=8,fig.width=22}
+P4_10X_Trachea=buildClusterTree(P4_10X_Trachea,do.reorder = F,reorder.numeric = F,pcs.use = 1:20)
+
+```
+
+```{r}
+P4.res08.clust.markers <- FindAllMarkers(object = P4_10X_Trachea, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+```{r}
+save(P4_10X_Trachea,file="P4_10X_Trachea.RData")
+load("P4_10X_Trachea.RData")
+```
+```{r}
+P4.res08.clust.markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+```
+
+```{r}
+write.table(P4.res08.clust.markers,"marker_res08_10XP4Trachea.txt",sep="\t")
+```
+
+```{r}
+P4marker_res08_13over1_12<-FindMarkers(P4_10X_Trachea,ident.1=c(13),ident.2 = c(1,12),only.pos = TRUE)
+P4marker_res08_13over1_12
+```
+
+```{r,fig.height=25,fig.width=20}
+VlnPlot(object = P4_10X_Trachea, features.plot = c("Ano1","Ano2","Ano3","Ano4","Ano5","Ano6","Ano8","Ano9","Ano10"), nCol = 1,x.lab.rot = T)
+```
+
+```{r,fig.height=70,fig.width=20}
+VlnPlot(object = P4_10X_Trachea, features.plot = c("Gabrp","Clca1","Clca2","Clca4","Clca5","Clcf1","Clcn2","Clcn3","Clcn4-2","Clcn5","Clcn6","Clcn7","Clic1","Clcc1","Clic3","Clic4","Clic5","Clic6","Best1","Best2","Best3","Slc26a7","Slc26a9","Cftr"), nCol = 1,x.lab.rot = T)
+```
+
+```{r,fig.height=8,fig.width=18}
+P4_10X_Trachea <- SetAllIdent(object = P4_10X_Trachea, id = "res.0.8")
+
+DoHeatmap(object = P4_10X_Trachea, genes.use = c("Tdtom_transgene","Twist2","Actg2","Tnnt3","Notch3","Slpi","Adipoq","Top2a","Acta2","Vim","Des","Palld","Gfap","Col1a1","Col2a1","Col11a1","Acan","Sox9","Dpt","Dcn","Lum","Foxl1","Wnt5","Porcn","Pdgfra","Nrp1","Cldn5","Esam","Gpihbp1","Lyve1","Flt4","Prox1","Calca","Snap25","Ascl1","Chga","C1qa","C1qb","Il17rb","Gfp_transgene","Epcam","Sftpb","Sftpa1","Gp2","Muc5b","Muc5ac","Scgb1a1","Creb3l1","Trp63","Krt5","Foxn4","Foxj1","Cdhr3","Cftr","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.order = c(1,12,13,19,17,16,9,5,15,14,7,20,18,11,8,3,4,10,2,6,0))
+```
+```{r,fig.height=8,fig.width=18}
+P4_10X_Trachea <- SetAllIdent(object = P4_10X_Trachea, id = "res.0.8")
+
+DoHeatmap(object = P4_10X_Trachea, genes.use = c("Tdtom_transgene","Twist2","Actg2","Tnnt3","Notch3","Slpi","Adipoq","Top2a","Acta2","Vim","Des","Palld","Gfap","Col1a1","Col2a1","Col11a1","Acan","Sox9","Dpt","Dcn","Lum","Foxl1","Wnt5","Porcn","Pdgfra","Nrp1","Cldn5","Esam","Gpihbp1","Lyve1","Flt4","Prox1","Calca","Snap25","Ascl1","Chga","C1qa","C1qb","Il17rb","Gfp_transgene","Epcam","Sftpb","Sftpa1","Gp2","Muc5b","Muc5ac","Scgb1a1","Creb3l1","Trp63","Krt5","Foxn4","Foxj1","Cdhr3","Cftr","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.0.8",group.order = c(1,12,13,19,17,16,9,5,15,14,7,20,18,11,8,3,4,10,2,6,0),cells.use=P4_10X_Trachea@cell.names[P4_10X_Trachea@meta.data$genotype=="WT"])
+```
+
+```{r,fig.height=8,fig.width=18}
+DoHeatmap(object = P4_10X_Trachea, genes.use = c("Acta2","Vim","Des","Palld","Gfap","Col1a1","Col2a1","Col11a1","Sox9","Dpt","Dcn","Lum","Foxl1","Wnt5","Porcn","Pdgfra","Nrp1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = F,group.order = c(1,12,13,19,17,16,9,5,15,14,7,20,18,11,8,3,4,10,2,6,0))
+```
+```{r,fig.height=90,fig.width=20}
+VlnPlot(object = P4_10X_Trachea, features.plot = c("Acta2","Vim","Des","Palld","Gfap","Col1a1","Col2a1","Col11a1","Sox9","Dpt","Dcn","Lum","Foxl1","Wnt5a","Kit","Cd34","Gdf10","Hhip","Cdh4","Porcn","Pdgfra","Nrp1","Eln"), nCol = 1,x.lab.rot = T,ident.include = c(1,12,13,19,17,16,9,5,15,14,7))
+```
+##### Cd34 is hematopoetic stem cell. Itgax and Il3ra are dendritic . Ncr1 is NK cell. Cd19 and Cd22 is B cell. Ly6c1 and 2 are granulocyte. Itgb3, Itgb2, and Selp are platelet. Gypa is erythrocyte  Emr1 and Itgam are macrophage/monocyte 
+```{r,fig.height=8,fig.width=18}
+DoHeatmap(object = P4_10X_Trachea, genes.use = c("Tdtom_transgene","Cd34","Cd3g","Cd3d","Cd3e","Cd8a","Cd8b1","Cd4","Cd9","Itgax","Il3ra","Ncr1","Cd19","Cd22","Ly6c1","Ly6c2","Itgb3","Itgb2","Selp","Gypa","Emr1","Itgam","Il17rb","Il4","Il12","Il25","Gfp_transgene","Epcam"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,cells.use=P4_10X_Trachea@cell.names[P4_10X_Trachea@meta.data$res.0.8==11])
+```
+
+```{r}
+marker_c6_wt_mut<-FindMarkers(P4_10X_Trachea,cells.1<-WhichCells(object=P4_10X_Trachea,ident=6,cells.use = P4_10X_Trachea@meta.data$genotype=="WT"),cells.2<-WhichCells(object=P4_10X_Trachea,ident=6,cells.use = P4_10X_Trachea@meta.data$genotype=="mut"),only.pos = TRUE)
+marker_c6_wt_mut
+```
+```{r}
+write.table(marker_c6_wt_mut,"P4Oct_cluster6_wtOverMut.txt",sep="\t")
+```
+
+```{r}
+marker_c6_mut_wt<-FindMarkers(P4_10X_Trachea,cells.1<-WhichCells(object=P4_10X_Trachea,ident=6,cells.use = P4_10X_Trachea@meta.data$genotype=="mut"),cells.2<-WhichCells(object=P4_10X_Trachea,ident=6,cells.use = P4_10X_Trachea@meta.data$genotype=="WT"),only.pos = TRUE)
+marker_c6_mut_wt
+```
+```{r}
+write.table(marker_c6_mut_wt,"P4Oct_cluster6_mutOverWT.txt",sep="\t")
+```
+
+```{r}
+library(ggsignif)
+library(ggpubr)
+```
+
+```{r, fig.height=5, fig.width=14}
+RNA_geno<-FetchData(P4_10X_Trachea,c("Ano1","genotype","gate","res.0.8","Notch1","Notch2","Shh","Fgfr2","Col1a1","Notum","Numb","Cdhr3","Foxj1","Creb3l1","Muc5ac","Gp2","Sftpb"))
+ggplot(RNA_geno,aes(res.0.8,Notch1,color=genotype))+geom_boxplot(aes(color=genotype))+stat_compare_means(aes(group=genotype),label="p.format",method="t.test",size=3)
+```
+
+```{r, fig.height=5, fig.width=14}
+ggplot(RNA_geno,aes(genotype,Ano1))+facet_grid(.~res.0.8)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.01,stackdir="center",position=position_dodge(0.8), dotsize=0.8)+stat_compare_means(comparisons = list(c("WT", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+##### subcluster red cells:
+```{r}
+P4_10X_red<-SubsetData(object=P4_10X_Trachea,ident.use=c(1,12,13,19,17,16,9,5,15,14,7,18,20,11))
+```
+```{r}
+colnames(P4_10X_red@meta.data)[colnames(P4_10X_red@meta.data) == 'res.0.8'] <- 'allP4_res.0.8'
+```
+```{r}
+P4_10X_red <- ScaleData(object = P4_10X_red)
+```
+
+```{r}
+P4_10X_red <- FindVariableGenes(object = P4_10X_red, do.plot = TRUE,x.low.cutoff=0.1, x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+
+```{r}
+P4_10X_red <- RunPCA(object = P4_10X_red, do.print = FALSE)
+PCAPlot(P4_10X_red)
+```
+
+```{r}
+P4_10X_red <- ProjectPCA(object = P4_10X_red, do.print = TRUE)
+```
+```{r}
+PCHeatmap(object = P4_10X_red, pc.use = 1:3, do.balanced = TRUE, label.columns = FALSE)
+```
+
+```{r}
+PCElbowPlot(object = P4_10X_red)
+```
+
+```{r}
+n.pcs.red = 18
+```
+```{r}
+res.used <- 0.8
+```
+
+```{r}
+res.used <- 1
+```
+
+```{r}
+res.used <- 1.2
+```
+```{r}
+res.used <- 1.4
+```
+```{r}
+res.used <- 1.6
+```
+```{r}
+P4_10X_red <- FindClusters(object = P4_10X_red, reduction.type = "pca", dims.use = 1:n.pcs.red, 
+                     resolution = res.used, print.output = 0, force.recalc = T)
+```
+```{r}
+P4_10X_red <- RunTSNE(object = P4_10X_red, dims.use = 1:n.pcs.subset, perplexity=30)
+```
+
+##### res0.8
+```{r}
+TSNEPlot(object = P4_10X_red, do.label = T,label.size = 7,pt.size = 0.5,group.by="res.0.8")
+```
+```{r}
+prop.table(table(P4_10X_red@meta.data$res.0.8,P4_10X_red@meta.data$genotype),2)
+```
+
+#####res.1 :
+```{r}
+TSNEPlot(object = P4_10X_red, do.label = T)
+```
+##### res1.2
+```{r}
+TSNEPlot(object = P4_10X_red, do.label = T)
+```
+##### res1.4, same as 1.2
+```{r}
+TSNEPlot(object = P4_10X_red, do.label = T)
+```
+##### res1.6
+```{r}
+TSNEPlot(object = P4_10X_red, do.label = T)
+```
+```{r}
+TSNEPlot(object = P4_10X_red, do.label = F,group.by="seq_group")
+```
+```{r}
+save(P4_10X_red,file="P4_red_10X_Trachea.RData")
+load("P4_red_10X_Trachea.RData")
+```
+```{r}
+library(ggalluvial)
+```
+```{r}
+P4_red_clsuter<-as.data.frame(cbind(P4_10X_red@cell.names,P4_10X_red@meta.data$allP4_res.0.8,P4_10X_red@meta.data$res.0.8,P4_10X_red@meta.data$res.1,P4_10X_red@meta.data$res.1.4,P4_10X_red@meta.data$res.1.6),stringsAsFactors = F)
+colnames(P4_red_clsuter)<-c("cell_name","all_res0.8","subset_res0.8","subset_res1","subset_res1.4","subset_res.1.6")
+```
+```{r, fig.height=8, fig.width=10}
+ggplot(P4_red_clsuter,aes(axis1=all_res0.8,axis2=subset_res0.8,axis3=subset_res1.2))+geom_alluvium(aes(fill=subset_res0.8))+geom_stratum(width = 1/12, fill = "black", color = "grey") +geom_label(stat = "stratum", label.strata = TRUE)+scale_x_discrete(limits = c("all_res0.8", "subset_res0.8","subset_res1.4"), expand = c(.05, .05)) 
+```
+
+```{r}
+P4_10X_red <- SetAllIdent(object = P4_10X_red, id = "res.1.2")
+
+P4.red.res1.2.markers <- FindAllMarkers(object = P4_10X_red, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+```{r}
+write.table(P4.red.res1.2.markers,"marker_res12_10P4Red.txt",sep="\t")
+```
+```{r}
+P4.red.res1.2.markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+```
+```{r}
+P4Red_res1.2_7over3<-FindMarkers(P4_10X_red,ident.1=c(7),ident.2 = c(3),only.pos = TRUE)
+P4Red_res1.2_7over3
+```
+```{r}
+P4Red_res1.2_0over5<-FindMarkers(P4_10X_red,ident.1=c(0),ident.2 = c(5),only.pos = TRUE)
+P4Red_res1.2_0over5
+```
+
+```{r}
+P4Red_res1.2_5over0<-FindMarkers(P4_10X_red,ident.1=c(5),ident.2 = c(0),only.pos = TRUE)
+P4Red_res1.2_5over0
+```
+
+```{r}
+P4Red_res1.2_3and8<-FindMarkers(P4_10X_red,ident.1=c(3,8),only.pos = TRUE)
+P4Red_res1.2_3and8
+```
+```{r}
+write.table(P4Red_res1.2_3and8,"marker_10XP4red_Res1.2_3and8.txt",sep="\t")
+```
+
+```{r}
+P4Red_res1.2_8over3<-FindMarkers(P4_10X_red,ident.1=c(8),ident.2=3,only.pos = TRUE)
+P4Red_res1.2_8over3
+```
+
+```{r}
+P4Red_res1.2_3_8_posneg<-FindMarkers(P4_10X_red,ident.1=c(3),ident.2=8,only.pos = F)
+P4Red_res1.2_3_8_posneg
+```
+
+```{r}
+write.table(P4Red_res1.2_3_8_posneg,"marker_10XP4red_Res1.2_3_8_posneg.txt",sep="\t")
+```
+
+```{r,fig.height=28, fig.width=12}
+VlnPlot(object = P4_10X_red, features.plot = c("Tnnt2","Tnnt3","Ano1","Slit3","Col11a1","Robo4","Foxl1","Wnt5a","Wnt5b","Eln","Fbn1","Emilin1","Emilin2"), nCol = 1,x.lab.rot = T,point.size.use = 0.3)
+```
+```{r,fig.height=18, fig.width=12}
+VlnPlot(object = P4_10X_red, features.plot = c("Wnt2","Pdgfra","Pdgfrb","Nt5e","Thy1","Eng","Adamts5","Efemp1","Lpl","Tmem119"), nCol = 1,x.lab.rot = T,point.size.use = 0.3)
+```
+
+#####multipotent MSC express CD105(Eng), CD73(Nt5e), and CD90(Thy1). Mcam (Cd146). MSC must lack expression of CD45, CD34?, CD14 or CD11b, CD79α, or CD19, and HLA‐DR surface molecules
+```{r,fig.height=18, fig.width=12}
+VlnPlot(object = P4_10X_red, features.plot = c("Eng","Nt5e","Thy1","Mcam","Ptprc","Cd34","Cd14","Itgam","Cd79a"), nCol = 1,x.lab.rot = T,point.size.use = 0.3)
+```
+
+```{r,fig.height=30, fig.width=12}
+VlnPlot(object = P4_10X_red, features.plot = c("Ctgf","Sprr1a","Myl9","Cck","Nid1","Sdpr","Anxa8","Cspg4","Wt1","Lgr5","Lgr6","Vcam1","C3","C1ra","C1s"), nCol = 1,x.lab.rot = T,point.size.use = 0.3)
+```
+
+```{r,fig.height=10,fig.width=24}
+
+DoHeatmap(object = P4_10X_red, genes.use = c("Ano1","Notch3","Rgs5","Kcnj8","Pdgfc","Slpi","Rgs2","Myom1","Acta2","Tagln","Myh11","Ppp1r14a","Hhip","Eln","Bmp4","Wif1","Dkk2","Tpbg","Sfrp2","Mki67","Top2a","C1qtnf7","Col2a1","Acan","Mgp","Mia","Matn4","Sox5","Sox6","Sox9","Col11a1","Pi16","Lpl","Cd34","Ly6a","Thy1","Clec3b"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,cex.row = 20,group.cex = 30,group.by="res.0.8",cells.use=P4_10X_red@cell.names[P4_10X_red@meta.data$res.0.8 %in% c(0,1,10,14,2,3,5,6,7,8,9)],group.order = c(3,9,2,7,1,8,5,6,10,0,14)
+  )
+```
+
+```{r,fig.height=8,fig.width=24}
+
+DoHeatmap(object = P4_10X_red, genes.use = c("Ano1","Notch3","Rgs5","Kcnj8","Cnn1","Mylk","Smtn","Rgs2","Acta2","Tagln","Myh11","Ppp1r14a","Chrm3","Ednrb","Vipr2","Agtr1","Aplnr","P2ry1","Bdkrb1","Mtnr1a"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,cex.row = 20,group.cex = 30,group.by="res.0.8",cells.use=P4_10X_red@cell.names[P4_10X_red@meta.data$res.0.8 %in% c(0,1,10,14,2,3,5,6,7,8,9)],group.order = c(3,9,2,7,1,8,5,6,10,0,14)
+  )
+```
+
+```{r}
+table(P4_10X_red@meta.data$res.1.2,P4_10X_red@meta.data$genotype)
+```
+```{r}
+prop.table(table(P4_10X_red@meta.data$res.1.2,P4_10X_red@meta.data$genotype),2)
+```
+
+```{r,fig.height=8,fig.width=22}
+P4_10X_red=buildClusterTree(P4_10X_red,do.reorder = F,reorder.numeric = F,pcs.use = 1:18)
+
+```
+```{r, fig.height=5, fig.width=15}
+P4red_RNA<-FetchData(P4_10X_red,c("genotype","allP4_res.0.8","res.1.2","Wnt2","Pdgfra","Pdgfrb","Nt5e","Thy1","Eng","Adamts5","Efemp1","Lpl","Tmem119"))
+ggplot(P4red_RNA,aes(genotype,Eng))+facet_grid(.~res.1.2)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.01,stackdir="center",position=position_dodge(0.8), dotsize=0.8)+stat_compare_means(comparisons = list(c("WT", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+##### subset green cells:
+
+```{r}
+P4_10X_subset<-SubsetData(object=P4_10X_Trachea,ident.use=c(0,2,3,4,6,8,10))
+```
+```{r}
+colnames(P4_10X_subset@meta.data)[colnames(P4_10X_subset@meta.data) == 'res.0.8'] <- 'allP4_res.0.8'
+```
+```{r}
+P4_10X_subset <- ScaleData(object = P4_10X_subset)
+```
+
+```{r}
+P4_10X_subset <- FindVariableGenes(object = P4_10X_subset, do.plot = TRUE,x.low.cutoff=0.1, x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+######run PCA on the set of genes
+```{r}
+P4_10X_subset <- RunPCA(object = P4_10X_subset, do.print = FALSE)
+PCAPlot(P4_10X_subset)
+```
+
+```{r}
+P4_10X_subset <- ProjectPCA(object = P4_10X_subset, do.print = TRUE)
+```
+```{r}
+PCHeatmap(object = P4_10X_subset, pc.use = 1:3, do.balanced = TRUE, label.columns = FALSE)
+```
+
+```{r}
+PCElbowPlot(object = P4_10X_subset)
+```
+
+```{r}
+n.pcs.subset = 16
+```
+```{r}
+res.used <- 0.8
+```
+
+
+```{r}
+res.used <- 1
+```
+
+```{r}
+res.used <- 1.2
+```
+```{r}
+P4_10X_subset <- FindClusters(object = P4_10X_subset, reduction.type = "pca", dims.use = 1:n.pcs.subset, 
+                     resolution = res.used, print.output = 0, force.recalc = T)
+```
+```{r}
+P4_10X_subset <- RunTSNE(object = P4_10X_subset, dims.use = 1:n.pcs.subset, perplexity=30)
+```
+
+##### res0.8
+```{r}
+TSNEPlot(object = P4_10X_subset, do.label = T)
+```
+#####res.1 is almost the same with res.0.8:
+```{r}
+TSNEPlot(object = P4_10X_subset, do.label = T)
+```
+##### res1.2
+```{r}
+TSNEPlot(object = P4_10X_subset, do.label = T)
+```
+```{r}
+TSNEPlot(object = P4_10X_subset, do.label = F,group.by="seq_group")
+```
+
+```{r}
+#save(P4_10X_subset,file="P4_subset_10X_Trachea.RData")
+load("P4_subset_10X_Trachea.RData")
+```
+```{r}
+library(ggalluvial)
+```
+```{r}
+P4_subset_clsuter<-as.data.frame(cbind(P4_10X_subset@cell.names,P4_10X_subset@meta.data$allP4_res.0.8,P4_10X_subset@meta.data$res.0.8,P4_10X_subset@meta.data$res.1,P4_10X_subset@meta.data$res.1.2),stringsAsFactors = F)
+colnames(P4_subset_clsuter)<-c("cell_name","all_res0.8","subset_res0.8","subset_res1","subset_res1.2")
+```
+```{r, fig.height=4, fig.width=10}
+ggplot(P4_subset_clsuter,aes(axis1=all_res0.8,axis2=subset_res0.8,axis3=subset_res1.2))+geom_alluvium(aes(fill=subset_res0.8))+geom_stratum(width = 1/12, fill = "black", color = "grey") +geom_label(stat = "stratum", label.strata = TRUE)+scale_x_discrete(limits = c("all_res0.8", "subset_res0.8","subset_res1.2"), expand = c(.05, .05)) 
+```
+
+```{r}
+P4.subset.res08.clust.markers <- FindAllMarkers(object = P4_10X_subset, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+```{r}
+write.table(P4.subset.res08.clust.markers,"marker_res08_10P4Green.txt",sep="\t")
+```
+```{r}
+P4.subset.res08.clust.markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+```
+
+```{r}
+P4Greenmarker_res08_2over7<-FindMarkers(P4_10X_subset,ident.1=c(2),ident.2 = 7,only.pos = TRUE)
+P4Greenmarker_res08_2over7
+```
+```{r}
+P4Greenmarker_res08_7over2<-FindMarkers(P4_10X_subset,ident.1=c(7),ident.2 = 2,only.pos = TRUE)
+P4Greenmarker_res08_7over2
+```
+```{r}
+P4Greenmarker_res08_6over8<-FindMarkers(P4_10X_subset,ident.1=c(6),ident.2 = 8,only.pos = TRUE)
+P4Greenmarker_res08_6over8
+```
+```{r}
+P4Greenmarker_res08_8over6<-FindMarkers(P4_10X_subset,ident.1=c(8),ident.2 = 6,only.pos = TRUE)
+P4Greenmarker_res08_8over6
+```
+
+```{r,fig.height=5,fig.width=14}
+DoHeatmap(object = P4_10X_subset, genes.use = c("Top2a","Gp2","Sftpb","Sftpa1","Muc5b","Muc5ac","Scgb1a1","Creb3l1","Trp63","Krt5","Foxn4","Foxj1","Cdhr3","Cftr","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T)
+```
+```{r}
+table(P4_10X_subset@meta.data$res.1.2,P4_10X_subset@meta.data$seq_group)
+```
+
+
+```{r,fig.height=6, fig.width=12}
+P4_10X_subset <- SetAllIdent(object = P4_10X_subset, id = "res.1.2")
+VlnPlot(object = P4_10X_subset, features.plot = c("nGene","nUMI"), nCol = 1,x.lab.rot = T,point.size.use = 0.3)
+```
+
+
+
+```{r,fig.height=4,fig.width=18}
+P4_10X_subset <- SetAllIdent(object = P4_10X_subset, id = "seq_group")
+
+DoHeatmap(object = P4_10X_subset, genes.use = c("Top2a","Gp2","Sftpb","Sftpa1","Muc5b","Muc5ac","Scgb1a1","Creb3l1","Trp63","Krt5","Foxn4","Foxj1","Cdhr3","Cftr","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,cells.use=P4_10X_subset@cell.names[P4_10X_subset@meta.data$res.1.2==5])
+```
+```{r,fig.height=8,fig.width=18}
+DoHeatmap(object = P4_10X_subset, genes.use = c("nGene","nUMI","Gfp_transgene","Trp63","Krt5","Muc5b","Creb3l1","Top2a","Krt4","Krt13","Muc5ac","Scgb1a1","Gp2","Ano1","Sftpb","Sftpa1","Dclk1","Cdhr3","Foxj1","Foxn4"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T)
+```
+
+```{r,fig.height=8,fig.width=18}
+DoHeatmap(object = P4_10X_subset, genes.use = c("Gfp_transgene","Trp63","Krt5","Krt14","Sostdc1","Ccl20","Krt8","Krt18","Muc5b","Creb3l1","Spdef","Top2a","Krt4","Krt13","Muc5ac","Scgb1a1","Gp2","Tff2","Ano1","Sftpb","Sftpa1","Cd177","Cdhr3","Foxj1","Foxn4"), group.order = c(10,11,7,8,0,1,3,4,9,5,2,6,12),group.by="res.1.2",
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T)
+```
+
+#####subset6 is mostly mutant, and Krt13+ Krt4+.
+```{r}
+prop.table(table(P4_10X_subset@meta.data$res.0.8,P4_10X_subset@meta.data$seq_group),2)
+```
+```{r}
+P4Greenmarker_res08_4over9<-FindMarkers(P4_10X_subset,ident.1=c(4),ident.2 = 9,only.pos = TRUE)
+P4Greenmarker_res08_4over9
+```
+```{r}
+P4Greenmarker_res08_9over4<-FindMarkers(P4_10X_subset,ident.1=c(9),ident.2 = 4,only.pos = TRUE)
+P4Greenmarker_res08_9over4
+```
+```{r}
+P4.subset.res1.2.clust.markers <- FindAllMarkers(object = P4_10X_subset, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+```{r}
+write.table(P4.subset.res1.2.clust.markers,"marker_res1.2_10P4Green.txt",sep="\t")
+```
+```{r}
+P4.subset.res1.2.clust.markers<-read.csv("marker_res1.2_10P4Green.txt",sep="\t",header=T)
+```
+```{r}
+P4.subset.res1.2.clust.markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+```
+```{r}
+prop.table(table(P4_10X_subset@meta.data$res.1.2,P4_10X_subset@meta.data$seq_group),2)
+```
+```{r}
+table(P4_10X_subset@meta.data$res.1.2,P4_10X_subset@meta.data$seq_group)
+```
+
+```{r}
+P4Greenmarker_res1.2_10over11<-FindMarkers(P4_10X_subset,ident.1=c(10),ident.2 = 11,only.pos = TRUE)
+P4Greenmarker_res1.2_10over11
+```
+```{r}
+P4Greenmarker_res1.2_11over10<-FindMarkers(P4_10X_subset,ident.1=c(11),ident.2 = 10,only.pos = TRUE)
+P4Greenmarker_res1.2_11over10
+```
+```{r}
+P4Greenmarker_res1.2_3over8<-FindMarkers(P4_10X_subset,ident.1=c(3),ident.2 = 8,only.pos = TRUE)
+P4Greenmarker_res1.2_3over8
+```
+```{r}
+P4Greenmarker_res1.2_8over3<-FindMarkers(P4_10X_subset,ident.1=c(8),ident.2 = 3,only.pos = TRUE)
+P4Greenmarker_res1.2_8over3
+```
+
+```{r}
+P4Greenmarker_res1.2_1over3<-FindMarkers(P4_10X_subset,ident.1=c(1),ident.2 = 3,only.pos = TRUE)
+P4Greenmarker_res1.2_1over3
+```
+```{r}
+write.table(P4Greenmarker_res1.2_1over3,"marker_res1.2_P4Green_1over3.txt",sep="\t")
+```
+
+
+```{r}
+P4Greenmarker_res1.2_3over1<-FindMarkers(P4_10X_subset,ident.1=c(3),ident.2 = 1,only.pos = TRUE)
+P4Greenmarker_res1.2_3over1
+```
+```{r}
+write.table(P4Greenmarker_res1.2_3over1,"marker_res1.2_P4Green_3over1.txt",sep="\t")
+```
+
+```{r,fig.height=4,fig.width=18}
+DoHeatmap(object = P4_10X_subset, genes.use = c("nGene","Epcam","Gfp_transgene","Chga","Ascl1","Ascl2","Ascl3","Cftr","Foxa2","Hoxb5","Krt4","Krt13","Foxj1","Creb3l1","Gp2","Sftbp","Cyp4b1","Sftpa1","Scgb1a1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T)
+```
+```{r, fig.height=5, fig.width=14}
+subset_RNA_geno<-FetchData(P4_10X_subset,c("Ano1","genotype","gate","res.0.8","res.1.2","Notch1","Notch2","Shh","Fgfr2","Col1a1","Notum","Numb","Cdhr3","Foxj1","Creb3l1","Muc5ac","Gp2","Sftpb"))
+ggplot(subset_RNA_geno,aes(res.1.2,Notch1,color=genotype))+geom_boxplot(aes(color=genotype))+stat_compare_means(aes(group=genotype),label="p.format",method="t.test",size=3)
+```
+```{r}
+table(P4_10X_subset@meta.data$res.1.2,P4_10X_subset@meta.data$seq_group)
+```
+
+
+
+
+
+
+
+
+
+
+

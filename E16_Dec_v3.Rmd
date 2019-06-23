@@ -1,0 +1,486 @@
+---
+title: "E16_Trachea_10X_Dec7_initialSeq+ReSeq_CellRangerv3_mm10.1.2.0_raw"
+output: html_document
+---
+## E16 Trachea sample on Dec7 2018. v2 chemistry. cellRanger version v3.
+```{r}
+library(Seurat)
+library(dplyr)
+
+```
+```{r}
+ZipF<-list.files(path="CombinedReads_raw_v3_mm10.1.2.0",pattern="*.gz",full.names = T,recursive = T)
+ZipF
+```
+```{r}
+library(plyr)
+library(R.utils)
+ldply(.data=ZipF, .fun=gunzip)  #Unzip CellRanger outputs
+```
+
+
+```{r}
+##### First I manually changed all featurres.tsv to genes.tsv. Otherwise Read10X (Seurat v2) would not recognize...
+setwd("./CombinedReads_raw_v3_mm10.1.2.0")
+# Load data
+file_10Xdir_E16_Dec7_com<-c("E16_Dec7_mut_7","E16_Dec7_mut_8","E16_Dec7_wt_1","E16_Dec7_wt_6")
+names(file_10Xdir_E16_Dec7_com)<-c("E16_Dec7_mut_7","E16_Dec7_mut_8","E16_Dec7_wt_1","E16_Dec7_wt_6")
+E16_Dec7.data <- Read10X(data.dir = file_10Xdir_E16_Dec7_com)
+```
+```{r}
+dim(E16_Dec7.data)
+```
+##### 27998 genes as usual for mm10.1.2.0
+##### 2949120 "cells"/barcodes without filtering so far, because I did not use the filtered matrix. I used the raw matrix.
+
+```{r}
+E16_Dec7v3_Trachea <- CreateSeuratObject(raw.data = E16_Dec7.data, min.cells = 1, min.genes = 1000, 
+    project = "E16_Dec7v3_Trachea")
+E16_Dec7v3_Trachea@raw.data@Dim
+```
+##### 21875 genes detected in at least 1 cell. 20780 "cells" remain.
+```{r}
+head(E16_Dec7v3_Trachea@cell.names)
+```
+
+```{r}
+E16_Dec7v3_Trachea <- FilterCells(object = E16_Dec7v3_Trachea, subset.names = c("nGene", "nUMI"), 
+    low.thresholds = c(1000, 5000), high.thresholds = c(Inf, Inf))
+E16_Dec7v3_Trachea@data@Dim
+```
+##### 21875 genes, 19213 cells with nGene>1k, nUMI>5k.
+##### extract metadata from cell names:
+```{r}
+cell_name<-read.table(text=E16_Dec7v3_Trachea@cell.names,sep="_",colClasses = "character")
+age<-cell_name[,1]
+names(age)<-E16_Dec7v3_Trachea@cell.names
+```
+```{r}
+E16_Dec7v3_Trachea<-AddMetaData(object = E16_Dec7v3_Trachea, metadata = age, col.name = "age")
+```
+
+```{r}
+sample_date<-cell_name[,2]
+names(sample_date)<-E16_Dec7v3_Trachea@cell.names
+```
+```{r}
+E16_Dec7v3_Trachea<-AddMetaData(object = E16_Dec7v3_Trachea, metadata = sample_date, col.name = "sample_date")
+```
+
+```{r}
+genotype<-cell_name[,3]
+names(genotype)<-E16_Dec7v3_Trachea@cell.names
+```
+```{r}
+E16_Dec7v3_Trachea<-AddMetaData(object = E16_Dec7v3_Trachea, metadata = genotype, col.name = "genotype")
+```
+
+
+```{r}
+seq_group<-paste(cell_name[,1],cell_name[,2],cell_name[,3],cell_name[,4],sep="_")
+names(seq_group)<-E16_Dec7v3_Trachea@cell.names
+```
+```{r}
+E16_Dec7v3_Trachea<-AddMetaData(object = E16_Dec7v3_Trachea, metadata = seq_group, col.name = "seq_group")
+```
+
+
+```{r}
+table(E16_Dec7v3_Trachea@meta.data$seq_group)
+```
+##### add doublet score for each cell as metadata:
+```{r}
+load("./CombinedReads_raw_v3_mm10.1.2.0/E16_Dec7_doubletScore.RData")
+E16_Dec7v3_Trachea<-AddMetaData(object = E16_Dec7v3_Trachea, metadata = E16_Dec7_doubletScore, col.name = "doublet_score")
+sum(is.na(E16_Dec7v3_Trachea@meta.data$doublet_score))
+```
+
+```{r}
+median(E16_Dec7v3_Trachea@meta.data$nGene)
+```
+
+```{r}
+median(E16_Dec7v3_Trachea@meta.data$nUMI)
+```
+
+```{r}
+ribo.genes <- grep(pattern = "^Rp[sl][[:digit:]]", x = rownames(x = E16_Dec7v3_Trachea@data), value = TRUE)
+percent.ribo <- Matrix::colSums(E16_Dec7v3_Trachea@raw.data[ribo.genes, ])/Matrix::colSums(E16_Dec7v3_Trachea@raw.data)
+E16_Dec7v3_Trachea <- AddMetaData(object = E16_Dec7v3_Trachea, metadata = percent.ribo, col.name = "percent.ribo")
+```
+
+```{r}
+mito.genes <- grep(pattern = "^mt-", x = rownames(x = E16_Dec7v3_Trachea@data), value = TRUE)
+percent.mito <- Matrix::colSums(E16_Dec7v3_Trachea@raw.data[mito.genes, ])/Matrix::colSums(E16_Dec7v3_Trachea@raw.data)
+E16_Dec7v3_Trachea <- AddMetaData(object = E16_Dec7v3_Trachea, metadata = percent.mito, col.name = "percent.mito")
+```
+
+
+```{r,fig.height=18, fig.width=12}
+VlnPlot(object = E16_Dec7v3_Trachea, features.plot = c("nGene", "nUMI","percent.ribo","percent.mito"), nCol = 1,group.by="seq_group",point.size.use=0.3)
+```
+```{r}
+aggregate(E16_Dec7v3_Trachea@meta.data[, c(1:2,8:10)], list(E16_Dec7v3_Trachea@meta.data$seq_group), median)
+```
+
+
+```{r}
+E16_Dec7v3_Trachea <- NormalizeData(object = E16_Dec7v3_Trachea)
+```
+```{r}
+E16_Dec7v3_Trachea <- ScaleData(object = E16_Dec7v3_Trachea)
+```
+```{r}
+E16_Dec7v3_Trachea <- FindVariableGenes(object = E16_Dec7v3_Trachea, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+```{r}
+E16_Dec7v3_Trachea <- RunPCA(object = E16_Dec7v3_Trachea, do.print = FALSE)
+E16_Dec7v3_Trachea <- ProjectPCA(object = E16_Dec7v3_Trachea, do.print = FALSE)
+```
+```{r,fig.height=50,fig.width=15}
+PCHeatmap(object = E16_Dec7v3_Trachea, pc.use = 1:20, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 25)
+
+```
+```{r}
+PCElbowPlot(object = E16_Dec7v3_Trachea)
+```
+```{r}
+n.pcs = 17
+res.used <- 0.8
+
+E16_Dec7v3_Trachea <- FindClusters(object = E16_Dec7v3_Trachea, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+E16_Dec7v3_Trachea <- RunTSNE(object = E16_Dec7v3_Trachea, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2)
+
+```
+
+```{r}
+TSNEPlot(object = E16_Dec7v3_Trachea, do.label = T,group.by="res.0.8",pt.size=0.1)
+
+```
+
+```{r}
+TSNEPlot(object = E16_Dec7v3_Trachea, do.label = F,group.by="seq_group",pt.size = 0.1)
+
+```
+```{r}
+TSNEPlot(object = E16_Dec7v3_Trachea, do.label = F,group.by="genotype",pt.size = 0.1)
+
+```
+
+##### res 1.2:
+```{r}
+res.used <- 1.2
+
+E16_Dec7v3_Trachea <- FindClusters(object = E16_Dec7v3_Trachea, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+E16_Dec7v3_Trachea <- RunTSNE(object = E16_Dec7v3_Trachea, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2)
+
+```
+
+```{r}
+TSNEPlot(object = E16_Dec7v3_Trachea, do.label = T,group.by="res.1.2",pt.size = 0.1)
+
+```
+
+#####save data:
+```{r}
+save(E16_Dec7v3_Trachea,file="E16_Dec7v3_Trachea.RData") 
+```
+```{r}
+load("E16_Dec7v3_Trachea.RData")
+```
+##### use resolution=1.2 for the rest of the analysis.
+
+```{r,fig.height=10,fig.width=35}
+DoHeatmap(object = E16_Dec7v3_Trachea, genes.use = c("Actg2","Tnnt3","Tead4","Adipoq","Top2a","Sox9","Col1a1","Col2a1","Acan","Dcn","Cldn5","Esam","C1qb","Epcam","Sftpb","Muc5ac","Galnt15","Creb3l1","Gp2","Trp63","Krt5","Foxj1","Foxn4","Cdhr3","Cftr","Ano1","Gabrp","Ascl2","Dclk1","Runx1","Runx2"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.by="res.1.2")
+```
+
+```{r,fig.height=8,fig.width=22}
+E16_Dec7v3_Trachea=buildClusterTree(E16_Dec7v3_Trachea,do.reorder = F,reorder.numeric = F,pcs.use = 1:17)
+
+```
+
+```{r}
+library(ggalluvial)
+```
+
+```{r, fig.height=18, fig.width=7}
+ggplot(E16_Dec7v3_Trachea@meta.data,aes(axis1=res.0.8,axis2=res.1.2))+geom_alluvium(aes(fill=res.1.2))+geom_stratum(width = 1/12, fill = "black", color = "grey") +geom_label(stat = "stratum", label.strata = TRUE)+scale_x_discrete(limits = c("res0.8", "res1.2"), expand = c(.05, .05)) 
+```
+```{r}
+table(E16_Dec7v3_Trachea@meta.data$res.0.8,E16_Dec7v3_Trachea@meta.data$res.1.2)
+```
+```{r}
+prop.table(table(E16_Dec7v3_Trachea@meta.data$res.1.2,E16_Dec7v3_Trachea@meta.data$seq_group),2)
+```
+```{r}
+table(E16_Dec7v3_Trachea@meta.data$res.1.2,E16_Dec7v3_Trachea@meta.data$seq_group)
+```
+```{r,fig.height=8, fig.width=12}
+VlnPlot(object = E16_Dec7v3_Trachea, features.plot = c("nGene","nUMI","doublet_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,group.by="res.1.2")
+```
+
+```{r}
+E16_Dec7_res.1.2.clust.markers <- FindAllMarkers(object = E16_Dec7v3_intron, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+
+
+```{r}
+E16_Dec_res12_12over23<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(12),ident.2 = 23,only.pos = TRUE)
+E16_Dec_res12_12over23
+```
+```{r}
+E16_Dec_res12_23over12<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(23),ident.2 = 12,only.pos = TRUE)
+E16_Dec_res12_23over12
+```
+```{r}
+E16_Dec_res12_23<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(23),only.pos = TRUE)
+E16_Dec_res12_23
+```
+##### cluster 23 looks like pericyte:
+```{r,fig.height=24, fig.width=12}
+VlnPlot(object = E16_Dec7v3_Trachea, features.plot = c("Acta2","Des","Cd248","Dlk1","Zic1","Notch3","Rgs5","Kcnj8","Abcc9","Cspg4","Pdgfrb","Ano1"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="res.1.2")
+```
+
+##### Ano1 intron:
+```{r,fig.height=12, fig.width=12}
+VlnPlot(object = E16_Dec7v3_intron, features.plot = c("Ano1","Acta2","Tagln","Notch3"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="exon_res.1.2")
+```
+```{r}
+E16_Dec_res12_16over21<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(16),ident.2 = 21,only.pos = TRUE)
+E16_Dec_res12_16over21
+```
+
+```{r}
+E16_Dec_res12_21over16<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(21),ident.2 = 16,only.pos = TRUE)
+E16_Dec_res12_21over16
+```
+```{r}
+E16_Dec_res12_21<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(21),only.pos = TRUE)
+E16_Dec_res12_21
+```
+
+```{r}
+E16_Dec_res12_10over1115<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(10),ident.2 = c(11,15),only.pos = TRUE)
+E16_Dec_res12_10over1115
+```
+```{r}
+E16_Dec_res12_11over1015<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(11),ident.2 = c(10,15),only.pos = TRUE)
+E16_Dec_res12_11over1015
+```
+```{r}
+E16_Dec_res12_15over1011<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(15),ident.2 = c(10,11),only.pos = TRUE)
+E16_Dec_res12_15over1011
+```
+```{r}
+E16_Dec_res12_6over9<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(6),ident.2 = c(9),only.pos = TRUE)
+E16_Dec_res12_6over9
+```
+```{r}
+E16_Dec_res12_9over6<-FindMarkers(E16_Dec7v3_Trachea,ident.1=c(9),ident.2 = c(6),only.pos = TRUE)
+E16_Dec_res12_9over6
+```
+
+##### epithelial, neuron/NEC, immune, schwann cell, endothelial, and red blood cells as well as doublets:
+```{r,fig.height=9,fig.width=28}
+
+DoHeatmap(object = E16_Dec7v3_Trachea, genes.use = c("Epcam","Trp63","Krt5","Mki67","Top2a","Creb3l1","Muc5ac","Gp2","Rac2","Galnt6","Ptgdr","Cd177","Foxj1","Foxn4","Calca","Snap25","Ascl1","Chga","Cd3g","C1qb","Fcer1g","Cd52","Mbp","Plp1","Egfl7","Cdh5","Pecam1","Alas2","Hbb-bs","Twist2","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,cells.use = E16_Dec7v3_Trachea@cell.names[E16_Dec7v3_Trachea@meta.data$res.1.2 %in% c(1,20,17,13,19,6,9,4,7,24,18,14,16,21,22)],group.order = c(1,20,13,19,6,9,4,7,24,21,16,18,14,22,17), cex.row = 20,group.cex = 30 
+  )  #c17 and c22 are probably doublets
+```
+
+##### cells not included in the previous heatmap:
+
+```{r,fig.height=18,fig.width=60}
+
+DoHeatmap(object = E16_Dec7v3_Trachea, genes.use = c("Col6a1","Bgn","Postn","Mki67","Top2a","Acta2","Actc1","Tagln","Rgs5","Kcnj8","Notch3","Ednra","Ednrb","Ppp1r14a","Myh11","Mia","Wif1","Col8a1","Col11a1","Acan","Col2a1","Sox9","Dcn","Meg3","Clec3b","Wnt2","Ly6a","Cd34","Thy1","Adam33","Rarres2","Pi16","Cygb","Lpl","Lipa","Foxl1","Pdgfra","Twist2","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,cells.use = E16_Dec7v3_Trachea@cell.names[E16_Dec7v3_Trachea@meta.data$res.1.2 %in% c(12,23,3,5,0,8,2,11,15,10)],group.order = c(12,23,3,15,5,0,8,2,10,11),cex.row = 30,group.cex=35
+  )
+```
+
+
+```{r}
+E16_res1.2_c4_wt_mut<-FindMarkers(E16_Dec7v3_Trachea,cells.1<-WhichCells(object=E16_Dec7v3_Trachea,ident=4,cells.use = E16_Dec7v3_Trachea@meta.data$genotype=="wt"),cells.2<-WhichCells(object=E16_Dec7v3_Trachea,ident=4,cells.use = E16_Dec7v3_Trachea@meta.data$genotype=="mut"),only.pos = TRUE)
+E16_res1.2_c4_wt_mut
+```
+```{r}
+E16_res1.2_c4_mut_wt<-FindMarkers(E16_Dec7v3_Trachea,cells.1<-WhichCells(object=E16_Dec7v3_Trachea,ident=4,cells.use = E16_Dec7v3_Trachea@meta.data$genotype=="mut"),cells.2<-WhichCells(object=E16_Dec7v3_Trachea,ident=4,cells.use = E16_Dec7v3_Trachea@meta.data$genotype=="wt"),only.pos = TRUE)
+E16_res1.2_c4_mut_wt
+```
+
+
+```{r}
+df_E16_Dec<-FetchData(E16_Dec7v3_Trachea,c("Areg","Il10","Il13","Il18","Il1b","Il33","Il4","Il5","Il6","S100a8","S100a9","Tgfb2","Tnf","Tslp","res.1.2","res.0.8","age","genotype","seq_group","Pigr","Cxcl17","Cxcl14","Ccl25","Ccl28","Cxcl15","Ccl20","Retnlb","Retnla","Itln1","Foxj1","Spdef","Creb3l1","Gp2","Tff2","Scgb1a1","Lcn2","Lgals3","Cftr","Foxi1"))
+
+```
+```{r, fig.height=5, fig.width=14}
+library(ggpubr)
+
+ggplot(df_E16_Dec,aes(genotype,Il33))+facet_grid(.~res.1.2)+geom_dotplot(binaxis="y",aes(color=genotype,fill=genotype),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("wt", "mut")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=genotype),fun.data=mean_sdl, fun.args = list(mult=1), 
+                 geom="pointrange",position=position_dodge(0.7))+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```
+
+
+
+##### Read loom files (generated by velocyto) using LoomR library, in order to access the intron reads for each cell:
+```{r}
+E16_lfile<-connect(filename="E16_Dec_combined_v3.loom",mode="r+")
+```
+
+```{r}
+E16_lfile[["matrix"]]
+```
+
+```{r}
+E16_lfile[["layers"]]
+```
+
+```{r}
+E16_lfile[["row_attrs"]]
+```
+```{r}
+loom_gene<-E16_lfile[["row_attrs/Gene"]][]
+head(loom_gene)
+```
+```{r}
+write(loom_gene,"loom_geneList.csv",sep=",")
+```
+##### loom_gene is a lot larger than mm10.1.2.0's gene list
+```{r}
+mm10.1.2.0_geneList<-read.csv(file="../gene_mm10_1_2_0.txt",header=T,sep="\t",stringsAsFactors = F)
+```
+
+```{r}
+setdiff(mm10.1.2.0_geneList[,1],loom_gene)
+```
+```{r}
+loom_diff<-(setdiff(loom_gene,mm10.1.2.0_geneList[,1]))
+```
+```{r}
+length(loom_diff)
+```
+##### A lot of loom specific genes are Gm, pseudogenes, etc.
+```{r}
+sum(substring(loom_diff,1,2)=="Gm")
+```
+```{r}
+loom_diff[substring(loom_diff,1,2)!="Gm"]
+```
+```{r}
+E16_lfile[["col_attrs"]]
+```
+
+```{r}
+E16_lfile[["col_attrs/CellID"]][1:5]
+```
+```{r}
+E16_Dec7v3_intron.data<-as(E16_lfile[["layers/unspliced"]][,],"sparseMatrix")
+cell_name<-gsub("x","",E16_lfile[["col_attrs/CellID"]][])
+cell_name<-gsub(":","_",cell_name)
+
+dimnames(E16_Dec7v3_intron.data)[[1]]<-cell_name
+dimnames(E16_Dec7v3_intron.data)[[2]]<-E16_lfile[["row_attrs/Gene"]][]
+E16_Dec7v3_intron.data<-t(E16_Dec7v3_intron.data)
+cells.use<-E16_Dec7v3_Trachea@cell.names
+filtered_E16_intron<-E16_Dec7v3_intron.data[,cells.use]
+```
+##### create a seurat object with intron counts only:
+```{r}
+E16_Dec7v3_intron <- CreateSeuratObject(raw.data = filtered_E16_intron, min.cells = 0, min.genes = 0, 
+    project = "E16_Dec7v3_intron")
+exon_res0.8<-E16_Dec7v3_Trachea@meta.data$res.0.8
+names(exon_res0.8)<-E16_Dec7v3_Trachea@cell.names
+E16_Dec7v3_intron<-AddMetaData(object = E16_Dec7v3_intron, metadata = exon_res0.8, col.name = "exon_res.0.8")
+exon_res1.2<-E16_Dec7v3_Trachea@meta.data$res.1.2
+names(exon_res1.2)<-E16_Dec7v3_Trachea@cell.names
+E16_Dec7v3_intron<-AddMetaData(object = E16_Dec7v3_intron, metadata = exon_res1.2, col.name = "exon_res.1.2")
+exon_nGene<-E16_Dec7v3_Trachea@meta.data$nGene
+names(exon_nGene)<-E16_Dec7v3_Trachea@cell.names
+E16_Dec7v3_intron<-AddMetaData(object = E16_Dec7v3_intron, metadata = exon_nGene, col.name = "exon_nGene")
+exon_nUMI<-E16_Dec7v3_Trachea@meta.data$nUMI
+names(exon_nUMI)<-E16_Dec7v3_Trachea@cell.names
+E16_Dec7v3_intron<-AddMetaData(object = E16_Dec7v3_intron, metadata = exon_nUMI, col.name = "exon_nUMI")
+seq_group<-E16_Dec7v3_Trachea@meta.data$seq_group
+names(seq_group)<-E16_Dec7v3_Trachea@cell.names
+E16_Dec7v3_intron<-AddMetaData(object = E16_Dec7v3_intron, metadata = seq_group, col.name = "seq_group")
+```
+
+```{r}
+GenePlot(object = E16_Dec7v3_intron, gene1 = "nGene", gene2 = "exon_nGene", use.raw=T,cex.use = 0.3)
+```
+```{r,fig.height=12, fig.width=12}
+VlnPlot(object = E16_Dec7v3_intron, features.plot = c("nGene","exon_nGene","nUMI","exon_nUMI"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=T,group.by="exon_res.0.8")
+```
+
+```{r}
+E16_Dec7v3_intron <- NormalizeData(object = E16_Dec7v3_intron)
+```
+```{r}
+E16_Dec7v3_intron <- ScaleData(object = E16_Dec7v3_intron)
+```
+
+```{r,fig.height=8,fig.width=28}
+E16_Dec7v3_intron <- SetAllIdent(object = E16_Dec7v3_intron, id = "exon_res.0.8")
+
+DoHeatmap(object = E16_Dec7v3_intron, genes.use = c("Epcam","Trp63","Krt5","Col6a1","Col6a2","Col6a3","Bgn","Postn","Tk1","Mki67","Top2a","Creb3l1","Muc5ac","Gp2","Rac2","Galnt6","Ptgdr","Cd177","Foxj1","Foxn4","Calca","Snap25","Ascl1","Chga","Mbp","Plp1","Egfl7","Cdh5","Pecam1","C1qb","Fcer1g","Cd3g","Acta2","Actc1","Tagln","Alas2","Mia","Wif1","Col8a1","Col11a1","Acan","Col2a1","Sox9","Dcn","Meg3","Clec3b","Adam33","Rarres2","Pi16","Cygb","Pparg","Adrp","Fabp1","Fabp4","Fabp5","Lpl","Lipa","Ednra","Ednrb","Notch3","Ppp1r14a","Myh11","Sfrp2","Mgp","Foxl1","Pdgfra","Twist2","Ano1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.order = c(1,18,14,17,12,2,6,8,20,15,13,11,19,10,5,7,0,9,3,4,16)
+  )
+```
+```{r}
+df_meta_E16_intron<-FetchData(E16_Dec7v3_intron,c("nGene","nUMI","exon_res.0.8","exon_res.1.2"))
+```
+```{r}
+aggregate(df_meta_E16_intron[, 1:2], list(df_meta_E16_intron$exon_res.1.2), median)
+```
+```{r}
+E16_Dec7_intron.clust.markers <- FindAllMarkers(object = E16_Dec7v3_intron, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+
+```
+```{r}
+E16_Dec7_intron.clust.markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+```
+```{r}
+write.table(E16_Dec7_intron.clust.markers,"marker_res08_E16_Dec7_intron.txt",sep="\t")
+```
+
+```{r}
+save(E16_Dec7v3_intron,file="E16_Dec7v3_intron.RData")
+load(file="E16_Dec7v3_intron.RData")
+```
+
+```{r,fig.height=12, fig.width=12}
+VlnPlot(object = E16_Dec7v3_intron, features.plot = c("Acta2","Actc1","Tagln","Rgs5","Notch3"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="exon_res.1.2")
+```
+
+```{r,fig.height=12, fig.width=12}
+VlnPlot(object = E16_Dec7v3_intron, features.plot = c("Foxn4","Foxj1","Shisa8","Ccno","Hmmr"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="exon_res.0.8")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,370 @@
+---
+title: "Trachea sample collected on May 3 2018"
+output: html_notebook
+---
+#### Embryonic mouse #8 E14.5 wild type
+#### supplementary
+#### Smartseq2 method. reads aligned to mm10-plus.
+#####Read the gene cell table that has the read_count for every gene and cell:
+```{r}
+setwd("/Volumes/GoogleDrive/My Drive/research/Mu_He/sequencing")
+Trachea_May<-read.csv(file="180516_NS500126_0797_AHMCKKBGX5.csv",header=TRUE,sep=",") 
+```
+#####Remove the first column (gene names), and convert the gene names to rownames of the dataframe
+```{r}
+dfTrachea_May<-as.data.frame(Trachea_May[,-1]) 
+rownames(dfTrachea_May)<-Trachea_May[,1]
+```
+#####Remove the last column ("undetermined" reads)
+```{r}
+dfTrachea_May<-dfTrachea_May[,-705] #remove the "undetermined" column
+```
+#####got a dataframe of 704 variables (columns),because we have 2 plates each have 352 "cells". Each of the column in the dataframe is a cell
+#####Also this dataframe has 23438 observations (rows), each of which is a gene
+
+```{r}
+library(Seurat)
+library(dplyr)
+library(Matrix)
+```
+#####Specify the rawdata to be taken by Seurat:
+
+```{r}
+raw.data<-dfTrachea_May
+```
+
+#####analyze ERCC:
+#####get all rownames that contain "ERCC":
+```{r}
+erccs <- grep(pattern = "^ERCC-", x = rownames(x = raw.data), value = TRUE)
+```
+
+#####calculate the percentage of ERCC reads in total reads for each cell, and plot:
+```{r}
+percent.ercc <- Matrix::colSums(raw.data[erccs, ])/Matrix::colSums(raw.data)
+df_ercc<-as.data.frame(cbind(colnames(raw.data),as.numeric(percent.ercc)))
+ggplot(df_ercc,aes(percent.ercc))+geom_density()
+```
+
+######Get the row index for ERCCs:
+```{r}
+ercc.index <- grep(pattern = "^ERCC-", x = rownames(x = raw.data), value = FALSE)
+```
+
+######remove ERCCs from the dataset (but the percent.ERCC will be kept as a metadata column):
+```{r}
+raw.data <- raw.data[-ercc.index,]
+```
+
+#####Now create seurat object.
+```{r}
+seuTrachea_May <- CreateSeuratObject(raw.data = raw.data, project = "Trachea_May_mouse8", 
+                                 min.cells = 1, min.genes = 500)
+```
+```{r}
+dim(seuTrachea_May@raw.data)
+```
+#####So I have 523 "cells" in which at least 500 genes are detected. 18157 "genes" are detected in at least 1 "cell"
+
+#####Add some meta data to the seurat object:
+```{r}
+seuTrachea_May <- AddMetaData(object = seuTrachea_May, percent.ercc, col.name = "percent.ercc")
+
+#seurat was written for drop-seq/10X, in which nUMI is used for quantification. We use number of reads for quantification instead:
+colnames(seuTrachea_May@meta.data)[colnames(seuTrachea_May@meta.data) == 'nUMI'] <- 'nReads'
+```
+
+#####Now analyze ribosome genes:
+######generate a list of ribo gene names:
+```{r}
+ribo.genes <- grep(pattern = "^Rp[sl][[:digit:]]", x = rownames(x = seuTrachea_May@data), value = TRUE)
+```
+######calculate their ratio for every cell:
+```{r}
+percent.ribo <- Matrix::colSums(seuTrachea_May@raw.data[ribo.genes, ])/Matrix::colSums(seuTrachea_May@raw.data)
+```
+
+######Now add a column for percent.ribo as metadata:
+```{r}
+seuTrachea_May <- AddMetaData(object = seuTrachea_May, metadata = percent.ribo, col.name = "percent.ribo")
+```
+
+#####sanity check:
+```{r}
+VlnPlot(object = seuTrachea_May, features.plot = c("nGene", "nReads", "percent.ercc","percent.ribo"), nCol = 4,x.lab.rot = TRUE)
+```
+```{r}
+GenePlot(object = seuTrachea_May, gene1 = "nReads", gene2 = "nGene", use.raw=T)
+```
+
+#####Now remove the cells with too few reads <100k and too few genes <500
+```{r}
+seuTrachea_May <- FilterCells(object = seuTrachea_May, subset.names = c("nGene", "nReads"), 
+                          low.thresholds = c(500, 100000), high.thresholds = c(Inf, Inf))
+```
+```{r}
+dim(seuTrachea_May@data)
+```
+
+#####Now normalize the gene expression measurements for each cell by the total expression (so it is # of reads for this gene divided by nReads for that cell), multiply this by a scale factor (10,000 by default), log-transform (log1p(x), which is log(1+x)) the result, and then save the result is in SNr_Mar@data
+
+```{r}
+seuTrachea_May <- NormalizeData(object = seuTrachea_May)
+```
+
+#####Now scale the data: The scale.data slot (object@scale.data) represents a cell’s relative expression of each gene, in comparison to all other cells. So value 0 in the scale.data means average expression level for that gene across all cells. The more positive, the higher that gene is expressed in that cell. The values are re-centered for each gene. This data is used as input for dimensional reduction techniques, and is displayed in heatmaps.
+```{r}
+#if want to regress out some factors, use in the ScaleData function: vars.to.regress = c("nReads", "percent.ercc","Rn45s","nGene")
+#Here let's not regress out anything and take a look
+seuTrachea_May <- ScaleData(object = seuTrachea_May)
+```
+
+```{r}
+seuTrachea_May <- FindVariableGenes(object = seuTrachea_May, do.plot = TRUE, x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+#####The above generats object@var.genes, which is a vector of gene names that are identified to be variable. y.cutoff decides the cutoff for being "variable".
+######The result of all analysis is stored in object@hvg.info. A plot is also generated, with "variable" genes labeled with names.
+
+######run PCA on the set of genes decided in so_SNr@var.genes:
+######Returns Seurat object with the PCA calculation stored in object@dr$pca. In the function below, if do.print=TRUE, genes in each PC will be shown.
+```{r}
+seuTrachea_May <- RunPCA(object = seuTrachea_May, do.print = FALSE)
+PCAPlot(seuTrachea_May)
+```
+#####ProjectPCA scores each gene in the dataset (including genes not included in the PCA) based on their correlation with the calculated components. Though we don’t use this further here, it can be used to identify markers that are strongly correlated with cellular heterogeneity, but may not have passed through variable gene selection. The results of the projected PCA can be explored by setting use.full=T in the functions below.
+```{r}
+seuTrachea_May <- ProjectPCA(object = seuTrachea_May, do.print = TRUE)
+```
+#####Another way to show major genes in major PCs:
+```{r}
+PrintPCA(seuTrachea_May, pcs.print = 1:5, genes.print = 5, use.full = TRUE)
+```
+#####Below is another way to see PCs and how they separate the data: cells and genes are ordered according to their PCA scores. Setting cells.use (for example: cell.use=100) to a number plots the ‘extreme’ cells on both ends of the spectrum, which dramatically speeds plotting for large datasets (but will ignore the cells in the middle). num.genes=30 by default.
+```{r}
+PCHeatmap(object = seuTrachea_May, pc.use = 1:3, do.balanced = TRUE, label.columns = FALSE)
+```
+#####Now need to decide how many PCs to use:
+```{r}
+PCElbowPlot(object = seuTrachea_May)
+```
+######The above plot shows that the elbow of the graph falls at around pc 20.
+######Another way to statistically estimate: (caution: running this is slow)
+```{r}
+seuTrachea_May <- JackStraw(seuTrachea_May, num.replicate = 100, do.print = FALSE)
+JackStrawPlot(seuTrachea_May, PCs = 1:20)
+```
+
+```{r}
+n.pcs = 20
+```
+#####resolution parameter sets the ‘granularity’ of the downstream clustering, with increased values leading to a greater number of clusters. 
+```{r}
+res.used <- 1
+```
+#####K-nearest neighbor: 
+```{r}
+seuTrachea_May <- FindClusters(object = seuTrachea_May, reduction.type = "pca", dims.use = 1:n.pcs, 
+                     resolution = res.used, print.output = 0, force.recalc = T)
+```
+#####Let's extract plate and index information from the cell names (column names) and make them part of the meta data
+```{r}
+cell_name<-read.table(text=names(seuTrachea_May@ident),sep="_",colClasses = "character")
+table(cell_name[,1])
+colnames(cell_name)<-c("plate","well","tissue","other")
+```
+#####Now I can see how many cell passing filters from each plate.
+
+#####Now let's make the "plate" information part of each cell's metadata:
+```{r}
+plate<-cell_name$plate
+names(plate)<-names(seuTrachea_May@ident)   #AddMetaData needs names to assign values
+seuTrachea_May<-AddMetaData(object = seuTrachea_May, metadata = plate, col.name = "plate")
+```
+
+#####tSNE: (perplexity default is 30)
+```{r}
+seuTrachea_May <- RunTSNE(object = seuTrachea_May, dims.use = 1:n.pcs, perplexity=30)
+```
+```{r}
+TSNEPlot(object = seuTrachea_May, do.label = T)
+```
+
+```{r}
+TSNEPlot(object = seuTrachea_May, group.by="plate")
+```
+
+```{r, fig.height=12, fig.width=12}
+FeaturePlot(seuTrachea_May, c("nGene","Gfp_transgene","Tdtom_transgene","Shh","Ano1","Epcam","Lum","Aurkb","Matn4","Esam","Actc1","Pax8"), pt.size = 0.9, nCol = 3,no.legend = F)
+```
+```{r}
+seuTrachea_May <- SetAllIdent(object = seuTrachea_May, id = "ident")
+```
+
+```{r}
+GenePlot(object = seuTrachea_May, gene1 = "Shh", gene2 = "Gfp_transgene", use.raw=T)
+```
+```{r,fig.height=6, fig.width=12}
+VlnPlot(object = seuTrachea_May, features.plot = c("Gfp_transgene","Tdtom_transgene", "Cre_transgene"), nCol = 3)
+```
+
+
+```{r}
+DoHeatmap(object = seuTrachea_May, genes.use = c("Tdtom_transgene","Cre_transgene", "Gfp_transgene","Shh","Ano1","Sox9"), 
+    slim.col.label = TRUE, group.label.rot = TRUE)
+```
+
+#####find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+cluster.markers <- FindAllMarkers(object=seuTrachea_May, min.pct = 0.2,only.pos=TRUE)
+cluster.markers %>% group_by(cluster) %>% top_n(10, avg_logFC)
+```
+#####compare cluster 0 and 2
+```{r}
+cluster0.markers.pos <- FindMarkers(seuTrachea_May, ident.1 = 0,ident.2 = 2, min.pct = 0,only.pos=TRUE)
+print(cluster0.markers.pos)
+```
+```{r}
+cluster2.markers.pos <- FindMarkers(seuTrachea_May, ident.1 = 2,ident.2 = 0, min.pct = 0,only.pos=TRUE)
+print(cluster2.markers.pos)
+```
+
+#####save the seurat project for future visit:
+```{r}
+save(seuTrachea_May,file="seurat_Trachea_May.RData")
+load("seurat_Trachea_May.RData")
+```
+
+```{r, fig.height=12, fig.width=16}
+FeaturePlot(seuTrachea_May, c("Gfp_transgene","Tdtom_transgene","Trpm5","Ano1","Ano7","Plcb2","Il25","Dbh","Sox9"), pt.size = 0.6, nCol = 3,no.legend = F)
+```
+```{r,fig.height=6, fig.width=12}
+VlnPlot(object = seuTrachea_Jun, features.plot = c("Gfp_transgene","Tdtom_transgene"), nCol = 1,x.lab.rot = TRUE)
+```
+```{r, fig.height=5, fig.width=14}
+DoHeatmap(object = seuTrachea_May, genes.use = c( "Gfp_transgene","Tdtom_transgene","Epcam","Cre_transgene"), 
+    slim.col.label = TRUE, group.label.rot = TRUE)
+```
+```{r, fig.height=5, fig.width=14}
+DoHeatmap(object = seuTrachea_May, genes.use = c( "Gfp_transgene","Tdtom_transgene","Epcam","Cre_transgene"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = F)
+```
+
+#### Map sorting data to sequencing data:
+#####Read index data:
+```{r}
+B003938<-read.csv(file="Trachea_B003938.csv",header=TRUE,sep=",",stringsAsFactors = F)
+B003938_sort<-B003938[B003938$Index!="",]
+B003935<-read.csv(file="Trachea_B003935.csv",header=TRUE,sep=",",stringsAsFactors = F)
+B003935_sort<-B003935[B003935$Index!="",]
+```
+
+#####Extract expression levels of genes. Make a dataframe (cluster_cell) that has the plate #, index#, cluster identity, and expression levels of some genes
+```{r}
+Tdtomato<-seuTrachea_May@data[which(rownames(seuTrachea_May@data)=="Tdtom_transgene"),]
+Gfp<-seuTrachea_May@data[which(rownames(seuTrachea_May@data)=="Gfp_transgene"),]
+cluster_cell<-cbind(cell_name[,1:2],seuTrachea_May@ident,Tdtomato,Gfp)
+colnames(cluster_cell)<-c("plate","Index","identity","Tdtom_transgene","Gfp_transgene")
+```
+
+######specify plate# in sorting metadata
+```{r}
+B003935_sort$plate<-rep("B003935",352)
+#merge_B003935<-merge(cluster_cell,B003935_sort)
+```
+
+```{r}
+#lowQ_B003935 <- anti_join(B003935_sort,cluster_cell,by=c("plate","Index"))
+```
+
+```{r}
+join_B003935<-left_join(B003935_sort,cluster_cell)
+```
+```{r}
+table(join_B003935$identity,exclude=NULL)
+```
+###### NA in the identity column means those "cells" did not pass the filtering criteria above (nGene 500, nReads 100k etc..)
+```{r}
+ggplot(join_B003935,aes(x=log10(Hoechst.33342.A.Compensated)))+geom_density(aes(color=identity))
+```
+###### So those Hoechst super high junk tend to have intermediate-high level of EGFP:
+```{r}
+ggplot(join_B003935,aes(x=log10(Hoechst.33342.A.Compensated),y=log10(EGFP.A.Compensated)))+geom_point(aes(color=identity))
+```
+###### And the Hoechst super high junk tend to have relatively low tdTomato signal:
+```{r}
+ggplot(join_B003935,aes(x=log10(Hoechst.33342.A.Compensated),y=log10(tdTomato.A.Compensated)))+geom_point(aes(color=identity))
+```
+```{r}
+ggplot(join_B003935,aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated)))+geom_point(aes(color=identity),size=0.2)
+```
+###### And the NA "cells"" tends to be very small in terms of FSC.W:
+```{r}
+ggplot(join_B003935,aes(log10(EGFP.A.Compensated),FSC.W))+geom_point(aes(color=identity))
+```
+```{r}
+ggplot(join_B003935,aes(log10(tdTomato.A.Compensated),FSC.W))+geom_point(aes(color=identity))
+```
+
+```{r}
+ggplot(join_B003935,aes(FSC.A,log10(BSC.A)))+geom_point(aes(color=identity))
+```
+```{r}
+ggplot(join_B003935,aes(FSC.A,log10(Hoechst.33342.A.Compensated)))+geom_point(aes(color=identity))
+```
+```{r}
+ggplot(subset(join_B003935,!is.na(Gfp_transgene)),aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated),color=Gfp_transgene))+geom_point(size=0.3)+scale_color_continuous(low="yellow",high="Black")
+```
+```{r}
+ggplot(subset(join_B003935,!is.na(Tdtom_transgene)),aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated),color=Tdtom_transgene))+geom_point(size=0.3)+scale_color_continuous(low="Black",high="yellow")
+```
+```{r}
+ggplot(subset(join_B003935,!is.na(Tdtom_transgene)),aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated),color=log(Tdtom_transgene/Gfp_transgene)))+geom_point(size=0.3)+scale_color_continuous(low="Black",high="yellow")
+```
+
+###### Insterestingly cluster 0 and 2 may differ a bit in sizes
+```{r}
+ggplot(join_B003935[join_B003935$identity %in% c("0","2"),],aes(FSC.W))+geom_density(aes(color=identity))
+```
+
+```{r}
+B003938_sort$plate<-rep("B003938",352)
+join_B003938<-left_join(B003938_sort,cluster_cell)
+```
+```{r}
+table(join_B003938$identity,exclude=NULL)
+```
+###### Intermediate Hoechst and below were cut off. Hoechst super high were sorted. Therefore we got so many NA in B003938
+```{r}
+ggplot(join_B003938,aes(log10(Hoechst.33342.A.Compensated)))+geom_density(aes(color=identity))
+```
+###### Again those Hoechst high junk is small in size
+```{r}
+ggplot(join_B003938,aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated)))+geom_point(aes(color=identity),size=0.2)
+```
+```{r}
+ggplot(join_B003938,aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated),color=Gfp_transgene))+geom_point(size=0.3)+scale_color_continuous(low="yellow",high="red")
+```
+```{r}
+ggplot(join_B003938,aes(x=log10(EGFP.A.Compensated),y=log10(tdTomato.A.Compensated),color=Tdtom_transgene))+geom_point(size=0.3)+scale_color_continuous(low="yellow",high="red")
+```
+```{r}
+ggplot(join_B003938,aes(log10(EGFP.A.Compensated),FSC.W))+geom_point(aes(color=identity))
+```
+```{r}
+ggplot(join_B003938,aes(log10(tdTomato.A.Compensated),FSC.W))+geom_point(aes(color=identity))
+```
+```{r}
+ggplot(join_B003938,aes(FSC.A,log10(Hoechst.33342.A.Compensated)))+geom_point(aes(color=identity))
+```
+
+
+
+
+
+
+
+
+
+
+
+

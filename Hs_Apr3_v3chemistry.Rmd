@@ -468,6 +468,10 @@ Hs_GA2123_Trachea_v3@ident = factor(Hs_GA2123_Trachea_v3@ident,levels(Hs_GA2123_
 DotPlot(object = Hs_GA2123_Trachea_v3, cols.use = c("lightgray","red"),genes.plot = c("CFTR","ANO1","EPCAM","TP63","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","MUC16","SERPINB3","SOX9","KRT14","SOSTDC1","MUC5B","SPDEF","LTF","LYZ","ACTA2","POU5F1","ESRG","SNAP25","CHGA","PLP1","MPZ","FCER1G","C1QA","PECAM1","LYVE1","MYH11","RGS5","NOTCH3","COL2A1","ACAN","WNT2","CD34","THY1","TWIST2","MKI67"),group.by = "ident", x.lab.rot = T,plot.legend = T)
 ```
 
+```{r,fig.height=5,fig.width=14}
+DotPlot(object = Hs_GA2123_Trachea_v3, cols.use = c("forestgreen","magenta3"),genes.plot = c("CFTR","ANO1","EPCAM","TP63","KRT5","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","MUC16","SERPINB3","SOX9","KRT14","SOSTDC1","MUC5B","MUC5AC","SPDEF","LTF","LYZ","ACTA2","POU5F1","ESRG","SNAP25","CHGA","PLP1","MPZ","FCER1G","C1QA","PECAM1","LYVE1","MYH11","RGS5","NOTCH3","COL2A1","ACAN","WNT2","PI16","CD34","THY1","TWIST2","MKI67"),group.by = "ident", x.lab.rot = T,plot.legend = T,col.min = -2,col.max = 2)
+```
+
 ```{r,fig.height=6,fig.width=8}
 DotPlot(object = Hs_GA2123_Trachea_v3, cols.use = c("forestgreen","magenta3"),genes.plot = c("FOXJ1","LTF","TP63","WNT2","PI16","CLEC3B","EPCAM","TERC","TERT","CLDN6","POU5F1","LIN28A","ESRG","L1TD1","DPPA4","UTF1","FOXD3-AS1","CRABP1","THY1","TUBB2B","UCHL1","TUBB3","SNAP25","PLP1"),group.by = "ident", x.lab.rot = T,plot.legend = T)
 ```
@@ -481,6 +485,26 @@ df_Hs<-FetchData(Hs_GA2123_Trachea_v3,c("ANO1","CFTR","SERPINB3","MUC16","specif
 ggplot(df_Hs,aes(specific_type,CFTR))+geom_dotplot(binaxis="y",aes(fill=specific_type),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))+ stat_summary(aes(color=specific_type),fun.data=mean_sdl, fun.args = list(mult=1), 
                  geom="pointrange",position=position_dodge(0.7))
 ```
+
+```{r,fig.width=10,fig.height=6}
+TSNEPlot(object = Hs_GA2123_Trachea_v3, do.label = F,group.by="specific_type",pt.size = 0.3)+scale_color_manual(values=c('#e6194b' , '#808080','#3cb44b', '#ffe119', '#4363d8', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#e6beff', '#9a6324', '#fabebe',  '#800000', '#aaffc3', '#808000','#ffd8b1', '#000075', '#f58231', '#000000','#fffac8'
+))
+
+```
+
+##### For the purpose of visualization, we average within each specific cell type:
+```{r}
+Hs_GA2123_Trachea_v3<-SetAllIdent(object = Hs_GA2123_Trachea_v3, id = "specific_type")
+average_Hs_specific_Annotation<-AverageExpression(object = Hs_GA2123_Trachea_v3,return.seurat = T)
+```
+
+```{r,fig.height=15,fig.width=15}
+
+DoHeatmap(object = average_Hs_specific_Annotation, genes.use = c("EPCAM","TP63","KRT5","FOXN4","SHISA8","MCIDAS","SNTN","CDHR3","FOXJ1","MUC16","SERPINB3","SOX9","KRT14","SOSTDC1","MUC5B","MUC5AC","SPDEF","LTF","LYZ","ACTA2","MYH11","POU5F1","ESRG","SNAP25","ASCL1","CHGA","PLP1","MPZ","FCER1G","C1QA","PECAM1","LYVE1","RGS5","NOTCH3","COL2A1","ACAN","WNT2","PI16","CD34","THY1","TWIST2","MKI67","CFTR","ANO1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.cex = 30,cex.row=20,group.order = c("Basal_SE","Basal_SMG","Ciliated_Foxn4","Ciliated","Secretory_SE",
+ "Secretory_SMG", "Myoepithelial","Epcam_ECM","Stem","Schwann/Neural","Immune","LymphaticEndothelial","VascularEndothelial","Muscle","Chondrocyte","MesenchymalProgenitor","Fibroblast","CyclingFibroblast"))
+```
+
 
 ```{r}
 save(Hs_GA2123_Trachea_v3_sub1,file="seurat_GA2123wk_v3_sub1.RData")

@@ -188,7 +188,8 @@ VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("doublet_score"), nCol 
 ```
 
 ```{r,fig.height=6,fig.width=15}
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("doublet_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("doublet_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'
+))
 
 ```
 ```{r, fig.height=5, fig.width=10}
@@ -234,7 +235,7 @@ table(seurat_E15E16P1P4_wt@meta.data$specific_type,seurat_E15E16P1P4_wt@meta.dat
 ##### specific_type of each cell is defined later.
 ```{r,fig.width=10,fig.height=5}
 
-TSNEPlot(object = seurat_E15E16P1P4_wt, do.label = F,pt.size = 0.2,group.by="specific_type")+scale_color_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff'
+TSNEPlot(object = seurat_E15E16P1P4_wt, do.label = F,pt.size = 0.2,group.by="specific_type")+scale_color_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'
 ))
 
 ```
@@ -299,6 +300,13 @@ DoHeatmap(object = average_wt_specific_Annotation, genes.use = c("Epcam","Trp63"
     slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.cex = 30,cex.row=20,cells.use = average_wt_specific_Annotation@cell.names[!(average_wt_specific_Annotation@cell.names %in% c("Thyroid","Doublet","RBC"))],group.order = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))
 ```
 
+```{r,fig.height=15,fig.width=15}
+
+DoHeatmap(object = average_wt_specific_Annotation, genes.use = c("Epcam","Trp63","Krt5","Krt8","Scgb3a2","Muc5ac","Spdef","Creb3l1","Gp2","Foxj1","Cdhr3","Twist2","Wnt2","Ly6a","Pi16","Cd34","Thy1","Sox9","Acan","Acta2","Myh11","Rgs5","Notch3","Pecam1","Lyve1","Fcer1g","Cd3g","C1qa","Cx3cr1","Plp1","Mpz","Ascl1","Chga","Snap25","Mki67"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.cex = 30,cex.row=20,cells.use = average_wt_specific_Annotation@cell.names[!(average_wt_specific_Annotation@cell.names %in% c("Thyroid","Doublet","RBC"))],group.order = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))
+```
+
+
 ```{r,fig.height=6,fig.width=12}
 seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "specific_type")
 # just to plot different cell types by a custom order:
@@ -314,6 +322,12 @@ seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "specific_
 
 seurat_E15E16P1P4_wt@ident = factor(seurat_E15E16P1P4_wt@ident,levels(seurat_E15E16P1P4_wt@ident)[c(5,1,19,17,4,3,14,16,20,11,9,10,13,21,12,2,8,6,18,15,7)])
 DotPlot(object = seurat_E15E16P1P4_wt, cols.use = c("lightgrey","red"),genes.plot = c("Mki67","Epcam","Trp63","Muc5ac","Spdef","Creb3l1","Gp2","Foxj1","Snap25","Chga","Plp1","Mpz","Pecam1","Lyve1","Fcer1g","C1qa","Cd3g","Acta2","Myh11","Rgs5","Notch3","Wnt2","Ly6a","Thy1","Cd34","Acan","Col2a1","Twist2"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+```
+```{r,fig.height=6,fig.width=12}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "specific_type")
+
+seurat_E15E16P1P4_wt@ident = factor(seurat_E15E16P1P4_wt@ident,levels(seurat_E15E16P1P4_wt@ident)[c(5,1,19,17,4,3,14,16,20,11,9,10,13,21,12,2,8,6,18,15,7)])
+DotPlot(object = seurat_E15E16P1P4_wt, cols.use = c("forestgreen","magenta3"),genes.plot = c("Mki67","Epcam","Trp63","Krt5","Krt8","Scgb3a2","Muc5ac","Spdef","Creb3l1","Gp2","Foxj1","Cdhr3","Snap25","Ascl1","Chga","Plp1","Mpz","Pecam1","Lyve1","Fcer1g","Cd3g","C1qa","Cx3cr1","Acta2","Myh11","Rgs5","Notch3","Wnt2","Ly6a","Pi16","Thy1","Cd34","Acan","Sox9","Twist2"),group.by = "ident", x.lab.rot = T,plot.legend = T,col.max = 2,col.min = -2)
 ```
 
 ##### epithlial cells across ages:
@@ -334,8 +348,8 @@ df_wt<-FetchData(seurat_E15E16P1P4_wt,c("Ano1","Cftr","Krt4","Krt13","res.1.4","
 
 ```
 
-```{r, fig.height=3, fig.width=10}
-ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(specific_type,Cftr))+facet_grid(.~age)+geom_dotplot(binaxis="y",aes(color=age,fill=age),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```{r, fig.height=5, fig.width=12}
+ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(specific_type,Cftr))+facet_grid(.~age)+geom_dotplot(binaxis="y",aes(color=age,fill=age),binwidth=0.02,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))
 ```
 ```{r, fig.height=3, fig.width=3}
 ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(age,Cftr))+geom_dotplot(binaxis="y",aes(fill=age),binwidth=0.07,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))+ stat_summary(aes(color=age),fun.data=mean_sdl, fun.args = list(mult=1), 
@@ -345,8 +359,8 @@ ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(age,Cftr)
 ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(age,Ano1))+geom_dotplot(binaxis="y",aes(fill=age),binwidth=0.07,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))+ stat_summary(aes(color=age),fun.data=mean_sdl, fun.args = list(mult=1), 
                  geom="pointrange",position=position_dodge(0.7))
 ```
-```{r, fig.height=3, fig.width=10}
-ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(specific_type,Ano1))+facet_grid(.~age)+geom_dotplot(binaxis="y",aes(color=age,fill=age),binwidth=0.05,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))
+```{r, fig.height=5, fig.width=12}
+ggplot(df_wt[df_wt$res.1.4 %in% c(11,8,3,9,1,29,30,2,7,20,27,28),],aes(specific_type,Ano1))+facet_grid(.~age)+geom_dotplot(binaxis="y",aes(color=age,fill=age),binwidth=0.02,stackdir="center",position=position_dodge(0.8), dotsize=0.018)+ theme(axis.text.x = element_text(angle = 45,hjust=1))
 ```
 
 ```{r, fig.height=3, fig.width=10}
@@ -377,8 +391,23 @@ table(seurat_E15E16P1P4_wt@meta.data$age[seurat_E15E16P1P4_wt@meta.data$res.1.4 
 
 ##### a few lineage markers:
 ```{r,fig.height=20,fig.width=20}
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Sox10","Mpz","Shh","Phox2a","Phox2b"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")
-
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Sox10","Mpz","Shh","Phox2a","Phox2b"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'))
+```
+##### a few lineage markers:
+```{r,fig.height=4,fig.width=20}
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Sox10"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'))
+```
+```{r,fig.height=4,fig.width=20}
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Mpz"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'))
+```
+```{r,fig.height=4,fig.width=20}
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Shh"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'))
+```
+```{r,fig.height=4,fig.width=20}
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Phox2a"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'))
+```
+```{r,fig.height=4,fig.width=20}
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Phox2b"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type")+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'))
 ```
 
 ```{r,fig.height=8,fig.width=22}
@@ -518,6 +547,12 @@ VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("PCD_score"), nCol = 1,
 
 ```
 
+```{r,fig.height=5,fig.width=10}
+seurat_E15E16P1P4_wt<-SetAllIdent(seurat_E15E16P1P4_wt,id="specific_type")
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("PCD_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#800000', '#aaffc3', '#ffd8b1', '#000075', '#808080'
+))
+
+```
 ```{r, fig.height=5, fig.width=5}
 
 ggplot(seurat_E15E16P1P4_wt@meta.data[seurat_E15E16P1P4_wt@meta.data$specific_type %in% c("Ciliated","CiliaSecretory"),],aes(age,PCD_score))+facet_grid(.~specific_type)+geom_dotplot(binaxis="y",aes(fill=age),binwidth=0.01,stackdir="center",position=position_dodge(0.8), dotsize=0.2)+stat_compare_means(comparisons = list(c("E16", "P1"),c("P1", "P4"),c("E16", "P4")),method="wilcox.test",size=4,label="p.adj")+ stat_summary(aes(color=age),fun.data=mean_sdl, fun.args = list(mult=1), 
@@ -535,7 +570,8 @@ VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("PCD_score"), nCol = 1,
 
 ```{r,fig.height=5,fig.width=10}
 seurat_E15E16P1P4_wt<-SetAllIdent(seurat_E15E16P1P4_wt,id="specific_type")
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("mucosaGoblet_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("mucosaGoblet_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#800000', '#aaffc3', '#ffd8b1', '#000075', '#808080'
+))
 
 ```
 ```{r,fig.height=5,fig.width=3}
@@ -573,7 +609,8 @@ VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Bronchiectasis_Bronchi
 ```
 ```{r,fig.height=5,fig.width=10}
 seurat_E15E16P1P4_wt<-SetAllIdent(seurat_E15E16P1P4_wt,id="specific_type")
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Bronchiectasis_Bronchitis"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Bronchiectasis_Bronchitis"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#800000', '#aaffc3', '#ffd8b1', '#000075', '#808080'
+))
 
 ```
 
@@ -594,7 +631,8 @@ seurat_E15E16P1P4_wt<-AddMetaData(object = seurat_E15E16P1P4_wt, metadata = wt_C
 
 ```{r,fig.height=5,fig.width=10}
 seurat_E15E16P1P4_wt<-SetAllIdent(seurat_E15E16P1P4_wt,id="specific_type")
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("COPD"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("COPD"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#800000', '#aaffc3', '#ffd8b1', '#000075', '#808080'
+))
 
 ```
 
@@ -612,7 +650,8 @@ seurat_E15E16P1P4_wt<-AddMetaData(object = seurat_E15E16P1P4_wt, metadata = wt_a
 
 ```{r,fig.height=5,fig.width=10}
 seurat_E15E16P1P4_wt<-SetAllIdent(seurat_E15E16P1P4_wt,id="specific_type")
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Asthma"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Asthma"), nCol = 1,x.lab.rot = T,point.size.use = 0.3,use.raw=F,group.by="specific_type",do.sort = F,ident.include = c("CyclingEpithelial","Basal","Transitional","Secretory","Ciliated","CiliaSecretory","Fibroblast","CyclingFibroblast","MesenchymalProgenitor","Chondrocyte","Muscle","VSMC/pericyte","LymphaticEndothelial","VascularEndothelial","Immune_1","Immune_2","SchwannCell","Neuron/NEC"))+scale_fill_manual(values=c('#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#000000', '#800000', '#aaffc3', '#ffd8b1', '#000075', '#808080'
+))
 
 ```
 ```{r, fig.height=5, fig.width=7}
@@ -901,9 +940,66 @@ ggplot(data=seurat_E15E16P1P4_wt@meta.data[seurat_E15E16P1P4_wt@meta.data$res.1.
 ```{r,fig.height=8,fig.width=8}
 seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
 
-VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Foxj1","Mcidas","Cdhr3","Creb3l1","Spdef","Gp2"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Foxj1","Mcidas","Cdhr3","Creb3l1","Spdef","Gp2"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
 
 ```
+
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Foxj1"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Mcidas"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Cdhr3"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Creb3l1"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Spdef"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Gp2"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+
+```{r,fig.height=4,fig.width=3}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "res.1.4")
+
+VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("Prr18"), nCol = 3,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )+scale_fill_manual(values=c('#EC906B', '#8E9FC5', '#AFD467'
+))
+
+```
+
 ```{r,fig.height=4,fig.width=3}
 VlnPlot(object = seurat_E15E16P1P4_wt, features.plot = c("doublet_score"), nCol = 1,x.lab.rot = T,point.size.use = 0.1,use.raw=F,group.by="specific_type",ident.include =c(2,7,20,27,28) )
 
@@ -986,7 +1082,7 @@ seurat_E15E16P1P4_wt@meta.data$specificType_age<-as.factor(paste(seurat_E15E16P1
 seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "specific_type")
 
 seurat_E15E16P1P4_wt@ident = factor(seurat_E15E16P1P4_wt@ident,levels(seurat_E15E16P1P4_wt@ident)[c(5,1,19,17,4,3,14,16,20,11,9,10,13,21,12,2,8,6,18,15,7)])
-DotPlot(object = seurat_E15E16P1P4_wt, cols.use = c("forestgreen","magenta3"),genes.plot = c("Ccl20","Ptgds","Ptges","Ptgs2","Cxcl15","Cxcl17","Ccl28","Retnla","Nfkbia","Nfkbiz","F2rl1","Areg","Defb1","Sftpd","Sftpb","Sftpa1","Muc1","Muc4","Muc16","Muc20","Muc5b","Muc5ac","Muc2","Lyz2","Ltf","Slpi","Lcn2","Pigr","Chil4","Itln1","Lbp","Lgals3","Reg3g"),group.by = "ident", x.lab.rot = T,plot.legend = T)
+DotPlot(object = seurat_E15E16P1P4_wt, cols.use = c("forestgreen","magenta3"),genes.plot = c("Ccl20","Ptgds","Ptges","Ptgs2","Cxcl15","Cxcl17","Ccl28","Retnla","Nfkbia","Nfkbiz","F2rl1","Areg","Defb1","Sftpd","Sftpb","Sftpa1","Muc1","Muc4","Muc16","Muc20","Muc5b","Muc5ac","Muc2","Lyz2","Ltf","Slpi","Lcn2","Pigr","Chil4","Itln1","Lbp","Lgals3","Reg3g"),group.by = "ident", x.lab.rot = T,plot.legend = T,col.min = -2,col.max = 2)
 ```
 
 ```{r}
@@ -997,6 +1093,12 @@ print(levels(seurat_E15E16P1P4_wt@ident))
 seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "specificType_age")
 seurat_E15E16P1P4_wt@ident=factor(seurat_E15E16P1P4_wt@ident,levels(seurat_E15E16P1P4_wt@ident)[c(16:19,1:4,66,59:61,12:15,9:11,30:37)])
 DotPlot(object = seurat_E15E16P1P4_wt, cols.use = c("gray","forestgreen"),genes.plot = rev(c("Ccl20","Ptgds","Ptges","Ptgs2","Cxcl15","Cxcl17","Ccl28","Retnla","Nfkbia","Nfkbiz","F2rl1","Areg","Defb1","Sftpd","Sftpb","Sftpa1","Muc1","Muc4","Muc16","Muc20","Muc5b","Muc5ac","Muc2","Lyz2","Ltf","Slpi","Lcn2","Pigr","Chil4","Itln1","Lbp","Lgals3","Reg3g")),group.by = "ident", x.lab.rot = T,plot.legend = T,do.return = T)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
+```
+
+```{r,fig.height=10,fig.width=10}
+seurat_E15E16P1P4_wt<-SetAllIdent(object = seurat_E15E16P1P4_wt, id = "specificType_age")
+seurat_E15E16P1P4_wt@ident=factor(seurat_E15E16P1P4_wt@ident,levels(seurat_E15E16P1P4_wt@ident)[c(16:19,1:4,66,59:61,12:15,9:11,30:37)])
+DotPlot(object = seurat_E15E16P1P4_wt, cols.use = c("forestgreen","magenta3"),genes.plot = rev(c("Ccl20","Ptgds","Ptges","Ptgs2","Cxcl15","Cxcl17","Ccl28","Retnla","Nfkbia","Nfkbiz","F2rl1","Areg","Defb1","Sftpd","Sftpb","Sftpa1","Muc1","Muc4","Muc16","Muc20","Muc5b","Muc5ac","Muc2","Lyz2","Ltf","Slpi","Lcn2","Pigr","Chil4","Itln1","Lbp","Lgals3","Reg3g")),group.by = "ident", x.lab.rot = T,plot.legend = T,do.return = T,col.min = -2,col.max = 2)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
 ```
 
 ##### Mucosal chemokines (ccl25, ccl28, cxcl14, and cxcl17):

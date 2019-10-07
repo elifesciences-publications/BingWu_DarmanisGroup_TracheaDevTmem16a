@@ -395,6 +395,15 @@ E16_Dec7v3_epi<-SetAllIdent(object = E16_Dec7v3_epi, id = "specific_type")
 E16_Dec7v3_epi@ident=factor(E16_Dec7v3_epi@ident,levels(E16_Dec7v3_epi@ident)[c(4,8,9,2,1,3,6,5,7)])
 DotPlot(object = E16_Dec7v3_epi, cols.use = c("lightgrey","red"),genes.plot = c("Foxj1","Ptgdr","B3gnt6","Galnt6","Cgref1","Gp2","Tff2","Muc5b","Muc16","Cited1","Krt4","Creb3l1","Spdef","Clic3","Ccl20","Sostdc1","Smoc2","Krt14","Bmp7","Trp63","Krt5","Mki67","Top2a"),group.by = "ident", x.lab.rot = T,plot.legend = T)
 ```
+
+```{r,fig.height=3,fig.width=8}
+E16_Dec7v3_epi<-SetAllIdent(object = E16_Dec7v3_epi, id = "specific_type")
+
+E16_Dec7v3_epi@ident=factor(E16_Dec7v3_epi@ident,levels(E16_Dec7v3_epi@ident)[c(4,8,9,2,1,3,6,5,7)])
+DotPlot(object = E16_Dec7v3_epi, cols.use = c("forestgreen","magenta3"),genes.plot = c("Foxj1","Ptgdr","B3gnt6","Galnt6","Cgref1","Gp2","Tff2","Muc5b","Muc16","Cited1","Krt4","Creb3l1","Spdef","Clic3","Ccl20","Sostdc1","Smoc2","Krt14","Bmp7","Trp63","Krt5","Mki67","Top2a"),group.by = "ident", x.lab.rot = T,plot.legend = T,col.max = 2,col.min = -2)
+```
+
+
 ```{r,fig.height=3,fig.width=8}
 print(levels(E16_Dec7v3_epi@ident))
 ```
@@ -525,7 +534,7 @@ DotPlot(object = E16_Dec7v3_epi, cols.use = c("yellow","red"),genes.plot = rev(c
 E16_Dec7v3_epi<-SetAllIdent(object = E16_Dec7v3_epi, id = "type_genotype")
 
 E16_Dec7v3_epi@ident=factor(E16_Dec7v3_epi@ident,levels(E16_Dec7v3_epi@ident)[c(1,4,2,3,9,10,5,6,7,8)])
-DotPlot(object = E16_Dec7v3_epi, cols.use = c("yellow","red"),genes.plot = rev(c("Nfkbia","Nfkbiz","Retnla","Cxcl17","Cxcl15","Ccl20","Areg","Muc5b","Muc4","Pigr","Ltf","Lyz2","Slpi","Lcn2","Sftpd","Sftpb","Defb1","Lgals3","Itln1")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) 
+DotPlot(object = E16_Dec7v3_epi, cols.use = c("forestgreen","magenta3"),genes.plot = rev(c("Nfkbia","Nfkbiz","Retnla","Cxcl17","Cxcl15","Ccl20","Areg","Muc5b","Muc4","Pigr","Ltf","Lyz2","Slpi","Lcn2","Sftpd","Sftpb","Defb1","Lgals3","Itln1")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T,col.min = -2,col.max = 2)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) 
 ```
 ```{r}
 DE_E16_ciliated_genotype<-FindMarkers(E16_Dec7v3_epi,cells.1<-WhichCells(object=E16_Dec7v3_epi,cells.use = (E16_Dec7v3_epi@meta.data$genotype=="wt" & E16_Dec7v3_epi@meta.data$cell_type=="Ciliated" )),cells.2<-WhichCells(object=E16_Dec7v3_epi,cells.use = (E16_Dec7v3_epi@meta.data$genotype=="mut" & E16_Dec7v3_epi@meta.data$cell_type=="Ciliated" )),only.pos = F,logfc.threshold=0,min.pct=0.05)

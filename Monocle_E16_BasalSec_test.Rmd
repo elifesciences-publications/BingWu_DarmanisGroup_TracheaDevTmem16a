@@ -1,0 +1,193 @@
+---
+title: "E16_Dec_epithelial_Monocle"
+output: html_notebook
+---
+
+```{r}
+load("E16_Dec7v3_epi.RData")
+```
+
+```{r}
+E16_Dec7v3_epi <- SetAllIdent(object = E16_Dec7v3_epi, id = "cell_type")
+E16_BasalSecTraj<-SubsetData(object=E16_Dec7v3_epi,ident.use=c("Basal","Basal/Secretory","Secretory"))
+E16_BasalSecTraj <- ScaleData(object = E16_BasalSecTraj)
+
+table(E16_BasalSecTraj@meta.data$cell_type,E16_BasalSecTraj@meta.data$genotype)
+
+```
+
+
+```{r}
+library(monocle)
+```
+
+```{r}
+monocle_E16_BasalSecTraj<-importCDS(E16_BasalSecTraj,import_all = T)
+
+monocle_E16_BasalSecTraj <- estimateSizeFactors(monocle_E16_BasalSecTraj)
+```
+```{r}
+monocle_E16_BasalSecTraj <- estimateDispersions(monocle_E16_BasalSecTraj)
+```
+
+```{r}
+monocle_E16_BasalSecTraj <- detectGenes(monocle_E16_BasalSecTraj, min_expr = 0.1)
+fData(monocle_E16_BasalSecTraj)$use_for_ordering <- fData(monocle_E16_BasalSecTraj)$num_cells_expressed > 0.05 * ncol(monocle_E16_BasalSecTraj)
+```
+```{r}
+monocle_E16_BasalSecTraj_expressed_genes <- row.names(subset(fData(monocle_E16_BasalSecTraj), num_cells_expressed >= 10))
+plot_pc_variance_explained(monocle_E16_BasalSecTraj, return_all = F, verbose = T, max_components = 20) 
+
+```
+```{r}
+monocle_E16_BasalSecTraj <- reduceDimension(monocle_E16_BasalSecTraj, max_components = 2, norm_method = 'log', num_dim = 17, reduction_method = 'tSNE', verbose = T)
+
+```
+```{r}
+monocle_E16_BasalSecTraj <- clusterCells(monocle_E16_BasalSecTraj, verbose = F)
+
+```
+
+```{r}
+plot_cell_clusters(monocle_E16_BasalSecTraj)
+
+```
+```{r}
+plot_rho_delta(monocle_E16_BasalSecTraj, rho_threshold = 2, delta_threshold = 4 )
+```
+```{r}
+monocle_E16_BasalSecTraj <- clusterCells(monocle_E16_BasalSecTraj, rho_threshold = 80, delta_threshold = 12, skip_rho_sigma = T, verbose = F)
+plot_cell_clusters(monocle_E16_BasalSecTraj)
+```
+
+```{r}
+plot_cell_clusters(monocle_E16_BasalSecTraj,color_by = "res.1.4")
+```
+
+
+
+```{r}
+clustering_DEG_genes_monocle_E16_BasalSecTraj <- differentialGeneTest(monocle_E16_BasalSecTraj[monocle_E16_BasalSecTraj_expressed_genes,], fullModelFormulaStr = '~specific_type')
+
+```
+
+
+
+
+```{r}
+monocle_E16_BasalSecTraj_ordering_genes <- 
+  row.names(clustering_DEG_genes_monocle_E16_BasalSecTraj)[order(clustering_DEG_genes_monocle_E16_BasalSecTraj$qval)][1:1000]
+
+monocle_E16_BasalSecTraj <- setOrderingFilter(monocle_E16_BasalSecTraj, ordering_genes = monocle_E16_BasalSecTraj_ordering_genes)
+monocle_E16_BasalSecTraj <- reduceDimension(monocle_E16_BasalSecTraj, method = 'DDRTree')
+monocle_E16_BasalSecTraj <- orderCells(monocle_E16_BasalSecTraj)
+```
+
+```{r}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "State")
+
+```
+
+```{r,fig.width=10,fig.height=6}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "specific_type",cell_size = 0.5,show_branch_points = F)+scale_color_manual(values=c("springgreen","darkgreen","red","darkorange","pink","blue1","lightblue"))
+
+```
+```{r,fig.width=9,fig.height=5.4}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "specific_type",cell_size = 0.5,show_branch_points = F)+scale_color_manual(values=c("springgreen","darkgreen","red","darkorange","pink","blue1","lightblue"))+facet_wrap(~genotype,nrow=1)
+
+```
+
+
+```{r,fig.width=10,fig.height=6}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "specific_type",markers = "Krt4",use_color_gradient = T,cell_size = 0.1,show_branch_points = F)
+
+```
+```{r,fig.width=10,fig.height=6}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "specific_type",markers = "Sostdc1",use_color_gradient = T,cell_size = 0.1,show_branch_points = F)
+
+```
+
+```{r,fig.width=10,fig.height=6}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "Pseudotime",cell_size = 0.3,show_backbone = F,show_branch_points = F)
+
+```
+
+
+```{r,fig.width=9,fig.height=5.4}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "specific_type",markers = "Krt4",use_color_gradient = T,cell_size = 0.3,show_branch_points = F)+facet_wrap(~genotype,nrow=1)
+
+```
+
+```{r,fig.width=9,fig.height=5.4}
+plot_cell_trajectory(monocle_E16_BasalSecTraj, color_by = "genotype",cell_size = 0.1,show_branch_points = F)+scale_color_manual(values=c("darkgreen","magenta"))+facet_wrap(~genotype,nrow=1)
+
+```
+
+
+
+```{r}
+to_be_tested <- row.names(subset(fData(monocle_E16_BasalSecTraj),
+gene_short_name %in% c("Krt4", "Krt13", "Sostdc1", "Krt8")))
+cds_subset <- monocle_E16_BasalSecTraj[to_be_tested,]
+diff_test_res <- differentialGeneTest(cds_subset,
+fullModelFormulaStr = "~sm.ns(Pseudotime)")
+diff_test_res[,c("gene_short_name", "pval", "qval")]
+
+```
+```{r,fig.width=9,fig.height=5.4}
+plot_genes_in_pseudotime(monocle_E16_BasalSecTraj[c("Krt4","Sostdc1","Gp2"),], color_by = "specific_type",cell_size = 0.3,vertical_jitter=0.1,relative_expr=T)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

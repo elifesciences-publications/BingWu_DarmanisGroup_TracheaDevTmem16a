@@ -87,6 +87,78 @@ ggplot(data=P4_Oct18_epi@meta.data,aes(genotype,fill=cell_type))+
 table(P4_Oct18_epi@meta.data$cell_type,P4_Oct18_epi@meta.data$genotype)
 ```
 ##### compare between genotypes:
+##### hybrid cells:
+```{r}
+DE_P4_hybrid_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="CiliaSecretory" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="CiliaSecretory" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
+DE_P4_hybrid_genotype
+```
+
+```{r}
+write.table(DE_P4_hybrid_genotype,"DE_P4_hybrid_genotype.txt",sep="\t")
+```
+
+
+```{r}
+DE_P4_hybrid_genotype$gene<-rownames(DE_P4_hybrid_genotype)
+
+P4_hybrid_automatic_geneList<-DE_P4_hybrid_genotype$gene[DE_P4_hybrid_genotype$p_val_adj<0.001 & abs(DE_P4_hybrid_genotype$avg_logFC)>0.5 ]
+```
+```{r}
+library(ggrepel)
+```
+```{r,fig.height=5,fig.width=6}
+#DE_P4_hybrid_genotype$gene<-rownames(DE_P4_hybrid_genotype)
+#DE_P4_hybrid_genotype$sig<-DE_P4_hybrid_genotype$p_val_adj<0.001
+DE_P4_hybrid_genotype$threshold<- ifelse(DE_P4_hybrid_genotype$avg_logFC>0 & DE_P4_hybrid_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_hybrid_genotype$avg_logFC<0 & DE_P4_hybrid_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+ggplot(DE_P4_hybrid_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=2) + #add points colored by significance
+  scale_color_manual(values=c("green", "gray","magenta"))+
+    ggtitle("P4Hybrid_wt/mut") + geom_text_repel(data=DE_P4_hybrid_genotype[DE_P4_hybrid_genotype$gene %in% P4_hybrid_automatic_geneList,], aes(label=gene), point.padding = NA, box.padding = .3,size=4.5,max.iter=5000) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+```{r,fig.height=5,fig.width=6}
+#DE_P4_hybrid_genotype$gene<-rownames(DE_P4_hybrid_genotype)
+#DE_P4_hybrid_genotype$sig<-DE_P4_hybrid_genotype$p_val_adj<0.001
+#DE_P4_hybrid_genotype$threshold<- ifelse(DE_P4_hybrid_genotype$avg_logFC>0 & DE_P4_hybrid_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_hybrid_genotype$avg_logFC<0 & DE_P4_hybrid_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
+ggplot(DE_P4_hybrid_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=2) + #add points colored by significance
+  scale_color_manual(values=c("green", "gray","magenta"))+
+    ggtitle("P4Hybrid_wt/mut") + geom_text_repel(data=DE_P4_hybrid_genotype[DE_P4_hybrid_genotype$gene %in% P4_hybrid_automatic_geneList,], aes(label=""), point.padding = NA, box.padding = .3,size=4.5,max.iter=5000) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+```{r,fig.height=8,fig.width=12}
+ggplot(DE_P4_hybrid_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4Hybrid_wt/mut") + geom_text_repel(data=DE_P4_hybrid_genotype[DE_P4_hybrid_genotype$gene %in% geneList$Primary.ciliary.dyskinesia,], aes(label=gene), point.padding = 1, box.padding = .3) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+```{r}
+
+DE_P4_hybrid_genotype[DE_P4_hybrid_genotype$gene %in% geneList$Primary.ciliary.dyskinesia,]
+```
+
+```{r}
+
+DE_P4_hybrid_genotype[DE_P4_hybrid_genotype$gene %in% geneList$Ciliopathy,]
+```
+
+```{r,fig.height=8,fig.width=12}
+ggplot(DE_P4_hybrid_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
+  scale_color_manual(values=c("green", "black","magenta"))+
+    ggtitle("P4Hybrid_wt/mut") + geom_text_repel(data=DE_P4_hybrid_genotype[DE_P4_hybrid_genotype$gene %in% intersect(DE_P4_hybrid_genotype$gene[DE_P4_hybrid_genotype$p_val_adj<0.01], c("Tppp3","Crip1","Lyz1","AU040972","Lyz2","S100a6","Igfbp3","8430408G22Rik","Lgals3","Cxcl17","Selenbp1","Slpi","Plac8","Lcn2","Tsc22d3","Mt1","Txnlp","S100a10","Ccnd2","Ly6g6c","Pdlim1","Atp7b","Fmo2","Hes1","Wfdc1","Anxa2","Cldn3","Klk11","Gpx2","Cd44","Atp1b1","Abhd2","Baiap2","Ptp4a1","Plet1","Anxa1","Cyp2b10","Mal","Ccl20","Ahnak","Lbp","F3","Sftpb","Cd36","Cd177","Isg15","Ifit1","Igfbp5","Ifrd1","Fcgbp","Meg3","Egr1","Zfp36","Pdia6","Retnla","Itln1","Tff2","Clca1","Cxcl15","Chil4","Fosb","Agr2","Muc5b","BC048546","Rnaset2a","Hspa5","Calr","Rps26-ps1","Gp2","Nfkbia","Reg3g","Irf1","Klk10")),], aes(label=gene), point.padding = 1, box.padding = .3) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
+
+
+
+
+##### ciliated cells:
 ```{r}
 DE_P4_ciliated_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="Ciliated" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="Ciliated" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
 DE_P4_ciliated_genotype
@@ -98,7 +170,7 @@ write.table(DE_P4_ciliated_genotype,"DE_P4_ciliated_genotype.txt",sep="\t")
 
 
 ```{r}
-P4_ciliated_automatic_geneList<-DE_P4_ciliated_genotype$gene[DE_P4_ciliated_genotype$p_val_adj<0.001 & abs(DE_P4_ciliated_genotype$avg_logFC)>0.5 & abs(DE_P4_ciliated_genotype$pct.1-DE_P4_ciliated_genotype$pct.2)>0.15]
+P4_ciliated_automatic_geneList<-DE_P4_ciliated_genotype$gene[DE_P4_ciliated_genotype$p_val_adj<0.001 & abs(DE_P4_ciliated_genotype$avg_logFC)>0.5 ]
 ```
 ```{r}
 library(ggrepel)
@@ -135,7 +207,15 @@ DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% geneList$Primary.cilia
 
 DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% geneList$Ciliopathy,]
 ```
+```{r,fig.height=5,fig.width=6}
 
+ggplot(DE_P4_ciliated_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=2) + #add points colored by significance
+  scale_color_manual(values=c("green", "gray","magenta"))+xlim(-2,2)+
+    ggtitle("P4Ciliated_wt/mut") + geom_text_repel(data=DE_P4_ciliated_genotype[DE_P4_ciliated_genotype$gene %in% P4_ciliated_automatic_geneList,], aes(label=""), point.padding = NA, box.padding = .3,size=4.5,max.iter=5000) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
 ```{r}
 DE_P4_basal_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="Basal" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="Basal" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
 DE_P4_basal_genotype
@@ -161,7 +241,15 @@ ggplot(DE_P4_basal_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot w
   labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
   theme(legend.title = element_blank(), legend.position = "top") 
 ```
+```{r,fig.height=5,fig.width=6}
 
+ggplot(DE_P4_basal_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=2) + #add points colored by significance
+  scale_color_manual(values=c("green", "gray","magenta"))+
+    ggtitle("P4Basal_wt/mut") + geom_text_repel(data=DE_P4_basal_genotype[DE_P4_basal_genotype$gene %in% P4_basal_automatic_geneList,], aes(label=""), point.padding = NA, box.padding = .3,size=4.5,max.iter=5000) +xlim(-2,2)+
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
+```
 ```{r}
 DE_P4_secretory_genotype<-FindMarkers(P4_Oct18_epi,cells.1<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="wt" & P4_Oct18_epi@meta.data$cell_type=="Secretory" )),cells.2<-WhichCells(object=P4_Oct18_epi,cells.use = (P4_Oct18_epi@meta.data$genotype=="mut" & P4_Oct18_epi@meta.data$cell_type=="Secretory" )),only.pos = F,logfc.threshold=0,min.pct=0.05)
 DE_P4_secretory_genotype
@@ -181,19 +269,25 @@ library(ggrepel)
 DE_P4_secretory_genotype$gene<-rownames(DE_P4_secretory_genotype)
 DE_P4_secretory_genotype$sig<-DE_P4_secretory_genotype$p_val_adj<0.001
 DE_P4_secretory_genotype$threshold<- ifelse(DE_P4_secretory_genotype$avg_logFC>0 & DE_P4_secretory_genotype$p_val_adj<0.001, "wt_enrich",ifelse(DE_P4_secretory_genotype$avg_logFC<0 & DE_P4_secretory_genotype$p_val_adj<0.001, "mut_enrich","NotSignificant" ) )
-volc = ggplot(DE_P4_secretory_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+ggplot(DE_P4_secretory_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
     geom_point(aes(col=threshold),size=0.2) + #add points colored by significance
   scale_color_manual(values=c("green", "black","magenta"))+
     ggtitle("P4secretory_wt/mut") + geom_text_repel(data=DE_P4_secretory_genotype[DE_P4_secretory_genotype$gene %in% P4_sec_automatic_geneList,], aes(label=gene), point.padding = 1, box.padding = .3) +
   labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
   theme(legend.title = element_blank(), legend.position = "top") 
 ```
-```{r,fig.height=8,fig.width=12}
-volc
+```{r,fig.height=5,fig.width=6}
+
+ggplot(DE_P4_secretory_genotype, aes(avg_logFC, -log10(p_val_adj))) + #volcanoplot with avg_logFC versus p_val_adj
+    geom_point(aes(col=threshold),size=2) + #add points colored by significance
+  scale_color_manual(values=c("green", "gray","magenta"))+
+    ggtitle("P4Secretory_wt/mut") + geom_text_repel(data=DE_P4_secretory_genotype[DE_P4_secretory_genotype$gene %in% P4_sec_automatic_geneList,], aes(label=""), point.padding = NA, box.padding = .3,size=4.5,max.iter=5000) +
+  labs(y = expression(-log[10]*" "*"adjusted pvalue"), x = "avg log fold change") + 
+  theme(legend.title = element_blank(), legend.position = "top") 
 ```
 
 ```{r}
-P4_sec_geneList<-c("Itln1","Retnla","Chil4","Clca1","Cxcl15","Fcgbp","Nfkbia","Hspa5","Ly6k","Ifrd1","Gm42418","Cxcl2","Nfkbiz","Lcn2","Igfbp3","Crip1","Selenbp1","Tppp3","Lyz2","S100a6","Plac8","AU040972","Klk10","Lyz1","Ly6a","Lgals3","Cxcl17","F3","Krt7","Cp","Tsc22d3","Mt1","Chil1","Krt4","Ptprz1","Ifitm1","Txnip","S100a10","Ly6g6c","Hes1","Cldn3","Klk11","Slpi","Baiap2","Plet1","Scnn1a","Lbp","Ltf","Ptges","Muc4","Atp1b1","Atp7b","Ptp4a1","AA467197")
+P4_sec_geneList<-c("Itln1","Retnla","Chil4","Clca1","Cxcl15","Fcgbp","Nfkbia","Hspa5","Ly6k","Ifrd1","Gm42418","Cxcl2","Nfkbiz","Lcn2","Igfbp3","Crip1","Selenbp1","Tppp3","Lyz2","S100a6","Plac8","AU040972","Klk10","Lyz1","Ly6a","Lgals3","Cxcl17","F3","Krt7","Cp","Tsc22d3","Mt1","Chil1","Krt4","Ptprz1","Ifitm1","Txnip","S100a10","Ly6g6c","Hes1","Cldn3","Klk11","Slpi","Baiap2","Plet1","Scnn1a","Lbp","Ltf","Ptges","Muc4","Atp1b1","Atp7b","Ptp4a1","AA467197","Fmo2","Fmo3","F3","Clic3")
 ```
 
 ```{r,fig.height=8,fig.width=16}
@@ -240,8 +334,15 @@ DotPlot(object = P4_Oct18_epi, cols.use = c("yellow","red"),genes.plot = rev(c("
 P4_Oct18_epi<-SetAllIdent(object = P4_Oct18_epi, id = "type_genotype")
 
 P4_Oct18_epi@ident=factor(P4_Oct18_epi@ident,levels(P4_Oct18_epi@ident)[c(1,2,7,8,5,6,3,4)])
-DotPlot(object = P4_Oct18_epi, cols.use = c("yellow","red"),genes.plot = rev(c("Nfkbia","Nfkbiz","Retnla","Cxcl17","Cxcl15","Ccl20","Areg","Chil4","Muc5b","Muc4","Pigr","Ltf","Lyz2","Slpi","Lcn2","Sftpd","Sftpb","Defb1","Lgals3","Itln1")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
+DotPlot(object = P4_Oct18_epi, cols.use = c("forestgreen","magenta3"),genes.plot = rev(c("Nfkbia","Nfkbiz","Retnla","Cxcl17","Cxcl15","Ccl20","Areg","Chil4","Muc5b","Muc4","Pigr","Ltf","Lyz2","Slpi","Lcn2","Sftpd","Sftpb","Defb1","Lgals3","Itln1")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T,col.min = -2,col.max = 2)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
 ```
+```{r,fig.height=6,fig.width=5}
+#P4_Oct18_epi<-SetAllIdent(object = P4_Oct18_epi, id = "type_genotype")
+
+#P4_Oct18_epi@ident=factor(P4_Oct18_epi@ident,levels(P4_Oct18_epi@ident)[c(1,2,7,8,5,6,3,4)])
+DotPlot(object = P4_Oct18_epi, cols.use = c("forestgreen","magenta3"),genes.plot = rev(c("Retnla","Cxcl15","Chil4","Muc4","Pigr","Slpi","Lcn2","Sftpb","Itln1","Cd177","Aard","Orm1","Ccl20")),x.lab.rot = T,plot.legend = T,group.by = "ident",do.return=T,col.min = -2,col.max = 2)+rotate()+ theme(axis.text.x = element_text(angle = 45, vjust = 1,hjust=1)) #this scales both genotypes together
+```
+
 
 ```{r}
 df_P4_epi<-FetchData(P4_Oct18_epi,c("Spdef","Creb3l1","Scgb3a2","Scgb1a1","Krt4","Krt13","Foxa3","Aqp3","Aqp4","Aqp5","Gp2","Sostdc1","Smoc2","Krt14","Krt15","Krt5","Rac2","Clic3","res.0.8","genotype","seq_group","specific_type","cell_type","Defb1","Lyz2","Ltf","Sftpa1","Sftpd","Sftpb","Slpi","Lcn2","Pigr","Muc5b","Muc5ac","Chil4","Muc1","Muc2","Muc4","Muc16","Muc20","Lbp","Cd14","Tlr4","Tlr2","Myd88","Ticam1","Itln1","Lgals3","Reg3g","Nod1","Nod2","Ddx58","Ifih1","Dhx58","Ccl5","Cxcl10","Cxcl2","Cxcl1","Pf4","Cxcl12","Cxcl14","Cxcl15","Cxcl16","Cxcl17","Ccl2","Ccl7","Ccl17","Ccl20","Ccl21a","Ccl25","Ccl27a","Ccl28","Cx3cl1","Il10","Tnf","S100a8","S100a9","Il6","Il18","Il1b","Il1rl1","Ccl11","Ccl24","Il33","Il25","Tslp","F2rl1","Retnla","Alox15","Alox5","Gata2","Tgfb2","Tgfb1","Ormdl3","Ptges","Ptgds","Ptgs2","Hpgds","Tbxas1","Areg","Il2","Il34","Il15","Ifnlr1","Nfkbiz","Nfkbia"))

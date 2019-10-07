@@ -1,0 +1,243 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+#load("seuratE15E16P1P4_wt.RData")
+```
+```{r}
+#load(file="seurat_GA2123wk_v3.RData")
+```
+
+```{r}
+homoloGene<-read.csv(file = "m_h_HomoloPair.txt",header=T,sep=" ",stringsAsFactors = F)
+homoloGene$comName<-paste(homoloGene$mGNameInData,homoloGene$V1,sep="_")
+```
+```{r}
+dim(seurat_E15E16P1P4_wt@raw.data)
+```
+
+```{r}
+mouse_wt_matrix<-seurat_E15E16P1P4_wt@raw.data[homoloGene$mGNameInData[homoloGene$mGNameInData %in% unlist(seurat_E15E16P1P4_wt@raw.data@Dimnames[1])],]
+mouse_wt_matrix@Dimnames[1]<-list(homoloGene$comName[homoloGene$mGNameInData %in% unlist(seurat_E15E16P1P4_wt@raw.data@Dimnames[1])])
+```
+
+```{r}
+mouse_wt_E16_matrix<-seurat_E15E16P1P4_wt@raw.data[homoloGene$mGNameInData[homoloGene$mGNameInData %in% unlist(seurat_E15E16P1P4_wt@raw.data@Dimnames[1])],seurat_E15E16P1P4_wt@cell.names[seurat_E15E16P1P4_wt@meta.data$age=="E16"]]
+mouse_wt_E16_matrix@Dimnames[1]<-list(homoloGene$comName[homoloGene$mGNameInData %in% unlist(seurat_E15E16P1P4_wt@raw.data@Dimnames[1])])
+```
+##### in the matrix above, genes with multiple homologs in the other species (hence shows in multiple rows in "homoloGene") also appear multiple times (each time with a unique "comName".)
+
+```{r}
+human_matrix<-Hs_GA2123_Trachea_v3@raw.data[homoloGene$V1[homoloGene$V1 %in% unlist(Hs_GA2123_Trachea_v3@raw.data@Dimnames[1])],Hs_GA2123_Trachea_v3@cell.names]
+human_matrix@Dimnames[1]<-list(homoloGene$comName[homoloGene$V1 %in% unlist(Hs_GA2123_Trachea_v3@raw.data@Dimnames[1])])
+```
+
+```{r}
+seu_mE16_homo<-CreateSeuratObject(raw.data = mouse_wt_E16_matrix, min.cells = 1, min.genes = 1, 
+    project = "mouse_E16_HomoloGene")
+```
+```{r}
+seu_human_homo<-CreateSeuratObject(raw.data = human_matrix, min.cells = 1, min.genes = 1, 
+    project = "human_HomoloGene")
+```
+##### merging 2 seurat objects give 18199 genes (16732 genes from the mouse object and 17550 from the human object. merging returns the union. missing genes in either objects become 0 in the merged object):
+```{r}
+seu_mE16_human_homo<-MergeSeurat(object1 = seu_mE16_homo,object2 = seu_human_homo,min.cells = 0,min.genes = 0,is.expr = 0,do.normalize = T,scale.factor = 10000)
+```
+```{r}
+table(seu_mE16_human_homo@meta.data$orig.ident)
+```
+
+
+```{r}
+library(plyr)
+seu_mE16_human_homo@meta.data$species<-mapvalues(seu_mE16_human_homo@meta.data$orig.ident,from=c("E16","GA21wk","GA23wk"),to=c("Mouse","Human","Human"))
+```
+
+```{r}
+mouse_annotation<-seurat_E15E16P1P4_wt@meta.data$specific_type
+names(mouse_annotation)<-seurat_E15E16P1P4_wt@cell.names
+human_annotation<-Hs_GA2123_Trachea_v3@meta.data$specific_type
+names(human_annotation)<-Hs_GA2123_Trachea_v3@cell.names
+seu_mE16_human_homo<-AddMetaData(object = seu_mE16_human_homo, metadata = c(mouse_annotation,human_annotation), col.name = "specific_type")
+```
+
+```{r}
+table(seu_mE16_human_homo@meta.data$species,seu_mE16_human_homo@meta.data$specific_type)
+```
+
+```{r}
+seu_mE16_human_homo@meta.data$annotation<-as.character(seu_mE16_human_homo@meta.data$specific_type)
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Ciliated_Foxn4"]<-"Ciliated"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Immune_1"]<-"Immune"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Immune_2"]<-"Immune"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Neuron/NEC"]<-"Schwann/Neural"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="SchwannCell"]<-"Schwann/Neural"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="VSMC/pericyte"]<-"Muscle"
+#SplitDotPlotGG cannot deal with annotations with an underscore, so I need to change all underscores:
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Basal_SE"]<-"BasalSE"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Basal_SMG"]<-"BasalSMG"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Secretory_SMG"]<-"SecretorySMG"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Secretory_SE"]<-"SecretorySE"
+seu_mE16_human_homo@meta.data$annotation[seu_mE16_human_homo@meta.data$annotation=="Epcam_ECM"]<-"EpcamECM"
+
+
+```
+```{r}
+seu_mE16_human_homo@meta.data$annotation<-seu_mE16_human_homo@meta.data$annotation[,drop=T]
+```
+```{r}
+table(seu_mE16_human_homo@meta.data$species,seu_mE16_human_homo@meta.data$annotation)
+```
+
+```{r}
+seu_mE16_human_homo@meta.data$speciesXannotation<-paste(seu_mE16_human_homo@meta.data$species,seu_mE16_human_homo@meta.data$annotation,sep="_")
+```
+```{r}
+table(seu_mE16_human_homo@meta.data$speciesXannotation)
+```
+```{r}
+seu_mE16_human_homo <- ScaleData(object = seu_mE16_human_homo)
+```
+
+```{r}
+seu_mE16_human_homo<-SetAllIdent(object = seu_mE16_human_homo, id = "annotation")
+
+print(levels(seu_mE16_human_homo@ident))
+```
+
+```{r,fig.width=14,fig.height=10}
+seu_mE16_human_homo@ident = factor(seu_mE16_human_homo@ident,levels(seu_mE16_human_homo@ident)[rev(c(1:3,6,19:21,16,10,7,18,5,9,22,23,12,13,24,15,4,14,11,8,17))])
+#seu_mE16_human_homo@ident = factor(seu_mE16_human_homo@ident,levels(seu_mE16_human_homo@ident)[rev(c(1:3,6,19:21,16,10,7,18,12,13,24,15,4,14,11,8))])
+
+SplitDotPlotGG(seu_mE16_human_homo,grouping.var = "species",genes.plot =rev( c("Epcam_EPCAM","Trp63_TP63","Krt5_KRT5","Foxj1_FOXJ1","Muc16_MUC16","Sox9_SOX9","Muc5b_MUC5B","Spdef_SPDEF","Ltf_LTF","Acta2_ACTA2","Myh11_MYH11","Pou5f1_POU5F1","Snap25_SNAP25","Ascl1_ASCL1","Chga_CHGA","Plp1_PLP1","Mpz_MPZ","Fcer1g_FCER1G","C1qa_C1QA","Pecam1_PECAM1","Lyve1_LYVE1","Rgs5_RGS5","Notch3_NOTCH3","Col2a1_COL2A1","Acan_ACAN","Wnt2_WNT2","Pi16_PI16","Cd34_CD34","Thy1_THY1","Twist2_TWIST2","Mki67_MKI67","Cftr_CFTR","Ano1_ANO1")),x.lab.rot	=T,plot.legend	=T,cols.use = c("red","yellow"))
+```
+
+```{r}
+seu_mE16_human_homo@meta.data$annotation_colaps<-seu_mE16_human_homo@meta.data$annotation
+seu_mE16_human_homo@meta.data$annotation_colaps[seu_mE16_human_homo@meta.data$annotation_colaps=="RBC"]<-"Others"
+seu_mE16_human_homo@meta.data$annotation_colaps[seu_mE16_human_homo@meta.data$annotation_colaps=="Stem"]<-"Others"
+seu_mE16_human_homo@meta.data$annotation_colaps[seu_mE16_human_homo@meta.data$annotation_colaps=="Doublet"]<-"Others"
+seu_mE16_human_homo@meta.data$annotation_colaps[seu_mE16_human_homo@meta.data$annotation_colaps=="Thyroid"]<-"Others"
+
+```
+```{r}
+seu_mE16_human_homo<-SetAllIdent(object = seu_mE16_human_homo, id = "annotation_colaps")
+
+print(levels(seu_mE16_human_homo@ident))
+```
+
+```{r,fig.width=12,fig.height=8}
+seu_mE16_human_homo@ident = factor(seu_mE16_human_homo@ident,levels(seu_mE16_human_homo@ident)[rev(c(1:3,6,5,18:20,7,9,15,17,11,21,12,14,4,13,10,8,16))])
+#seu_mE16_human_homo@ident = factor(seu_mE16_human_homo@ident,levels(seu_mE16_human_homo@ident)[rev(c(1:3,6,19:21,16,10,7,18,12,13,24,15,4,14,11,8))])
+
+SplitDotPlotGG(seu_mE16_human_homo,grouping.var = "species",genes.plot =rev( c("Epcam_EPCAM","Trp63_TP63","Krt5_KRT5","Foxj1_FOXJ1","Cdhr3_CDHR3","Muc16_MUC16","Muc5b_MUC5B","Spdef_SPDEF","Ltf_LTF","Snap25_SNAP25","Tubb3_TUBB3","Ascl1_ASCL1","Chga_CHGA","Plp1_PLP1","Mpz_MPZ","Fcer1g_FCER1G","C1qa_C1QA","Pecam1_PECAM1","Lyve1_LYVE1","Acta2_ACTA2","Myh11_MYH11","Rgs5_RGS5","Notch3_NOTCH3","Sox9_SOX9","Col2a1_COL2A1","Acan_ACAN","Wnt2_WNT2","Pi16_PI16","Cd34_CD34","Thy1_THY1","Twist2_TWIST2","Mki67_MKI67","Cftr_CFTR","Ano1_ANO1")),x.lab.rot	=T,plot.legend	=T,cols.use = c("blue","green"),col.min = -1,col.max = 2)
+```
+
+```{r}
+save(seu_mE16_human_homo,file = "seu_mE16_human_homology.RData")
+```
+
+
+
+
+
+```{r}
+seu_mE16_human_homo <- FindVariableGenes(object = seu_mE16_human_homo, do.plot = TRUE, x.low.cutoff=0.1,x.high.cutoff = Inf, y.cutoff = 0.5)
+```
+
+```{r}
+seu_mE16_human_homo <- RunPCA(object = seu_mE16_human_homo, do.print = FALSE)
+seu_mE16_human_homo <- ProjectPCA(object = seu_mE16_human_homo, do.print = FALSE)
+```
+```{r,fig.height=50,fig.width=15}
+#PCHeatmap(object = seu_mE16_human_homo, pc.use = 1:10, cells.use = 500, do.balanced = TRUE, label.columns = FALSE, num.genes = 25)
+
+```
+
+```{r}
+PCElbowPlot(object = seu_mE16_human_homo)
+```
+
+```{r}
+n.pcs = 20
+res.used <- 0.8
+
+seu_mE16_human_homo <- FindClusters(object = seu_mE16_human_homo, reduction.type = "pca", dims.use = 1:n.pcs, 
+    resolution = res.used, print.output = 0, save.SNN = TRUE)
+```
+```{r}
+seu_mE16_human_homo <- RunTSNE(object = seu_mE16_human_homo, dims.use = 1:n.pcs, seed.use = 10, perplexity=30, dim.embed = 2)
+
+```
+
+```{r}
+TSNEPlot(object = seu_mE16_human_homo, do.label = T,group.by="res.0.8",pt.size = 0.2)
+
+```
+```{r}
+TSNEPlot(object = seu_mE16_human_homo, do.label = T,group.by="species",pt.size = 0.2)
+
+```
+```{r,fig.height=8,fig.width=22}
+seu_mE16_human_homo=buildClusterTree(seu_mE16_human_homo,do.reorder = F,reorder.numeric = F)
+
+```
+
+
+
+
+
+
+```{r}
+seu_mE16_human_homo<-SetAllIdent(object = seu_mE16_human_homo, id = "speciesXannotation")
+average_human_homo_speciesXannotation<-AverageExpression(object = seu_mE16_human_homo,return.seurat = T)
+```
+
+```{r}
+correlation_scaled <- cor(average_human_homo_speciesXannotation@scale.data)
+round(correlation_scaled, 2)
+```
+```{r}
+correlation_raw <- cor(average_human_homo_speciesXannotation@raw.data)
+round(correlation_raw, 2)
+```
+```{r}
+correlation_unscaled <- cor(as.matrix(average_human_homo_speciesXannotation@data))
+round(correlation_unscaled, 2)
+```
+
+```{r,fig.height=12,fig.width=12}
+
+DoHeatmap(object = average_human_homo_speciesXannotation, genes.use = c("Epcam_EPCAM","Trp63_TP63","Krt5_KRT5","Foxj1_FOXJ1","Muc16_MUC16","Sox9_SOX9","Muc5b_MUC5B","Spdef_SPDEF","Ltf_LTF","Acta2_ACTA2","Myh11_MYH11","Pou5f1_POU5F1","Esrg_ESRG","Snap25_SNAP25","Ascl1_ASCL1","Chga_CHGA","Plp1_PLP1","Mpz_MPZ","Fcer1g_FCER1G","C1qa_C1QA","Pecam1_PECAM1","Lyve1_LYVE1","Rgs5_RGS5","Notch3_NOTCH3","Col2a1_COL2A1","Acan_ACAN","Wnt2_WNT2","Pi16_PI16","Cd34_CD34","Thy1_THY1","Twist2_TWIST2","Mki67_MKI67","Cftr_CFTR","Ano1_ANO1"), 
+    slim.col.label = TRUE, group.label.rot = TRUE,use.scaled = T,group.cex = 20,cex.row=15,cells.use = c("Human_Basal_SE","Human_Basal_SMG","Human_Ciliated","Human_Secretory_SE",
+ "Human_Secretory_SMG", "Human_Myoepithelial","Human_Epcam_ECM","Human_Stem","Human_Schwann/Neural","Human_Immune","Human_LymphaticEndothelial","Human_VascularEndothelial","Human_Muscle","Human_Chondrocyte","Human_MesenchymalProgenitor","Human_Fibroblast","Human_CyclingFibroblast","Mouse_Basal","Mouse_Ciliated","Mouse_Secretory","Mouse_CiliaSecretory","Mouse_CyclingEpithelial","Mouse_Schwann/Neural","Mouse_Immune","Mouse_LymphaticEndothelial","Mouse_VascularEndothelial","Mouse_Muscle","Mouse_Chondrocyte","Mouse_MesenchymalProgenitor","Mouse_Fibroblast","Mouse_CyclingFibroblast"),group.order = c("Human_Basal_SE","Human_Basal_SMG","Human_Ciliated","Human_Secretory_SE",
+ "Human_Secretory_SMG", "Human_Myoepithelial","Human_Epcam_ECM","Human_Stem","Human_Schwann/Neural","Human_Immune","Human_LymphaticEndothelial","Human_VascularEndothelial","Human_Muscle","Human_Chondrocyte","Human_MesenchymalProgenitor","Human_Fibroblast","Human_CyclingFibroblast","Mouse_Basal","Mouse_Ciliated","Mouse_Secretory","Mouse_CiliaSecretory","Mouse_CyclingEpithelial","Mouse_Schwann/Neural","Mouse_Immune","Mouse_LymphaticEndothelial","Mouse_VascularEndothelial","Mouse_Muscle","Mouse_Chondrocyte","Mouse_MesenchymalProgenitor","Mouse_Fibroblast","Mouse_CyclingFibroblast"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
